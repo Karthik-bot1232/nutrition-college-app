@@ -27,8 +27,9 @@
     </div>
     <nav class="datestrip" id="dateStrip" aria-label="Date"></nav>
   </div>
+</header>
 
-  <div class="toolbar">
+<div class="toolbar">
     <div class="wrap">
       <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal"></div>
       <div class="pills" id="hallPills" role="tablist" aria-label="Dining hall"></div>
@@ -46,21 +47,16 @@
       </div>
       <div class="activefilters" id="activeFilters" hidden></div>
     </div>
-  </div>
-</header>
+</div>
+
+<section class="wrap hero" id="hero"></section>
 
 <main class="wrap" id="content"></main>
 
 <div class="platebar" id="plateBar" hidden>
   <div class="wrap platebar__inner">
-    <div class="platebar__cal">
-      <strong id="plateCal">0</strong><span>cal on your plate</span>
-    </div>
-    <div class="platebar__macros" id="plateMacros"></div>
-    <div class="platebar__actions">
-      <button class="ghostbtn" id="plateClear">Clear</button>
-      <button class="primarybtn" id="plateOpen">View plate</button>
-    </div>
+    <p class="platebar__sum"><strong id="plateCal">0</strong> cal · <span id="plateN">0 items</span></p>
+    <button class="primarybtn" id="plateOpen">View plate</button>
   </div>
 </div>
 

@@ -20,6 +20,79 @@ const DIETS = ['vegan', 'vegetarian', 'halal'];
 const SCOPE_LABEL = { meal: 'This meal only', day: 'This whole day', all: 'Every stored day' };
 const SORT_LABEL = { name: 'Name', protein: 'Protein, high to low', calories: 'Calories, low to high' };
 
+/* The source publishes no photographs, and a page of identical grey rows is the
+   result. One glyph per item is the cheapest thing that gives a menu a shape you
+   can scan. Ordered: the first pattern that matches wins, so "chicken noodle
+   soup" reads as soup, not chicken. */
+const ICONS = [
+  // Word boundaries throughout: "chip" without one matches chipotle, and "tea"
+  // matches steak. Dishes before ingredients, so a chicken soup reads as soup.
+  [/\b(pizza)\b/, '🍕'], [/\b(tacos?)\b/, '🌮'], [/\b(burritos?|quesadillas?|enchiladas?|wraps?)\b/, '🌯'],
+  [/\b(sushi|sashimi|poke)\b/, '🍣'], [/\b(dumplings?|potstickers?|gyoza|wontons?)\b/, '🥟'],
+  [/\b(soup|broth|chowder|bisque|stew|chili|ramen|pho)\b/, '🍲'],
+  [/\b(burgers?|cheeseburgers?|hamburgers?)\b/, '🍔'],
+  [/\b(sandwich(es)?|panini|hoagie|blt|sub)\b/, '🥪'],
+  [/\b(salad|slaw|greens|lettuce)\b/, '🥗'],
+  [/\b(pasta|spaghetti|penne|noodles?|linguine|ziti|macaroni|lasagna|alfredo|marinara|ravioli)\b/, '🍝'],
+  [/\b(curry|tikka|masala|biryani)\b/, '🍛'],
+  [/\b(rice|pilaf|risotto|quinoa|couscous|cous cous|arroz)\b/, '🍚'],
+  [/\b(pancakes?|waffles?|crepes?)\b|french toast/, '🥞'],
+  [/\b(oatmeal|granola|cereal|porridge|grits|oats)\b/, '🥣'],
+  [/\b(ice cream|gelato|sorbet|sundae|frozen yogurt)\b/, '🍨'],
+  [/\b(cake|brownie|cupcake|pastry|danish|muffin|cheesecake|pudding|scone|custard|mousse)\b/, '🍰'],
+  [/\b(cookies?|biscotti)\b/, '🍪'], [/\b(doughnuts?|donuts?)\b/, '🍩'],
+  [/\b(pies?|cobbler|crisp|tarts?)\b/, '🥧'],
+  [/\b(bagels?|toast|bread|biscuits?|baguette|croissant|buns?|rolls?|cornbread)\b/, '🍞'],
+  [/\b(pita|tortillas?|naan|flatbread|hummus|falafel)\b/, '🫓'],
+  [/\b(pretzels?|crackers?|chips?)\b/, '🥨'],
+  [/\b(eggs?|omelets?|omelettes?|frittata|scrambled)\b/, '🍳'],
+  [/\b(bacon|sausages?|pork|ham|chorizo|pepperoni)\b/, '🥓'], [/\b(turkey)\b/, '🦃'],
+  [/\b(chicken|wings?|poultry|nuggets?)\b/, '🍗'],
+  [/\b(beef|steak|brisket|roast|lamb|veal|meatloaf)\b/, '🥩'],
+  [/\b(meatballs?|kofta)\b/, '🧆'],
+  [/\b(shrimp|crab|lobster|scallops?|clams?|mussels?|calamari)\b/, '🦐'],
+  [/\b(fish|salmon|tilapia|cod|tuna|pollock|catfish|haddock)\b/, '🐟'],
+  [/\b(tofu|tempeh|seitan|plant.based|vegan)\b/, '🌱'],
+  [/\b(beans?|lentils?|chickpeas?|edamame|hummus)\b/, '🫘'],
+  [/\b(potato(es)?|fries|tots|hash browns?|yuca|cassava)\b/, '🥔'],
+  [/\b(broccoli|spinach|kale|asparagus|zucchini|squash|peas?|green beans?|vegetables?|veggie|brussels?|cabbage|cauliflower|beets|celery|artichokes?|bok choy|coleslaw|sprouts)\b/, '🥦'],
+  [/\b(carrots?)\b/, '🥕'], [/\b(corn)\b/, '🌽'], [/\b(mushrooms?)\b/, '🍄'],
+  [/\b(tomatoes?|tomato|salsa)\b/, '🍅'], [/\b(onions?)\b/, '🧅'],
+  [/\b(peppers?|jalape\S*)\b/, '🫑'], [/\b(avocado|guacamole)\b/, '🥑'],
+  [/\b(cucumbers?|pickles?)\b/, '🥒'], [/\b(eggplant)\b/, '🍆'],
+  [/\b(cheese|mozzarella|cheddar|parmesan|feta|provolone)\b/, '🧀'],
+  [/\b(yogurt|milk|cream)\b/, '🥛'], [/\b(butter|margarine|oil|ghee)\b/, '🧈'],
+  [/\b(syrup|honey|jam|jelly|preserves?)\b/, '🍯'],
+  [/\b(apples?)\b/, '🍎'], [/\b(bananas?)\b/, '🍌'],
+  [/\S*berr(y|ies)\b/, '🍓'],
+  [/\b(oranges?|citrus|clementine|tangerine)\b/, '🍊'], [/\b(grapes?)\b/, '🍇'],
+  [/\b(melon|watermelon|cantaloupe)\b/, '🍉'], [/\b(pineapple)\b/, '🍍'],
+  [/\b(peach(es)?|nectarine|mango)\b/, '🍑'], [/\b(coconut)\b/, '🥥'], [/\b(fruit)\b/, '🍎'],
+  [/\b(coffee|espresso|latte|tea)\b/, '☕'], [/\b(juice|lemonade|smoothie|punch)\b/, '🧃'],
+  [/\b(sauce|gravy|dressing|aioli|vinaigrette|vinagrette|dip|ketchup|mustard|mayo|mayonnaise|vinegar|glaze|pesto|chimichurri|relish)\b/, '🥫'],
+  [/\b(nuts?|almonds?|peanuts?|cashews?|pecans?|walnuts?|seeds?)\b/, '🥜'],
+  [/\b(chocolate|cocoa|fudge)\b/, '🍫'], [/\b(cherry|cherries)\b/, '🍒'],
+  [/\b(basil|cilantro|parsley|garlic|ginger|herbs?|scallions?|chives)\b/, '🌿'],
+  [/\b(lemon|lime)\b/, '🍋'],
+];
+
+function iconFor(name) {
+  const n = name.toLowerCase();
+  for (const [re, glyph] of ICONS) if (re.test(n)) return glyph;
+  return '🍽️';
+}
+
+/** An SVG progress ring. `pct` is 0-1; the arc starts at twelve o'clock. */
+function ring(pct, cls, size, label) {
+  const r = 46, c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(1, pct)));
+  return `<svg class="ring ring--${cls}" viewBox="0 0 110 110" style="width:${size}px;height:${size}px" aria-hidden="true">
+    <circle class="ring__bg" cx="55" cy="55" r="${r}"/>
+    <circle class="ring__fg" cx="55" cy="55" r="${r}"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>
+  </svg>${label || ''}`;
+}
+
 const state = {
   meta: null, date: null, meal: null, location: null,
   q: '', scope: 'meal', minProtein: '', maxCalories: '', sort: 'name',
@@ -100,49 +173,37 @@ function scopeText() {
 
 /* ------------------------------------------------------------------ pieces */
 
-/** Three aligned cells: grams, and that macro's share of the item's calories. */
-function macroCells(p, c, f) {
-  const kcal = (p || 0) * 4 + (c || 0) * 4 + (f || 0) * 9;
-  const cell = (cls, key, grams, per) => {
-    const share = kcal ? Math.min(100, (grams || 0) * per / kcal * 100) : 0;
-    return `<div class="macro macro--${cls}">
-      <span class="macro__top">
-        <span class="macro__k">${key}</span>
-        <span class="macro__v">${grams == null ? '–' : Math.round(grams) + 'g'}</span>
-      </span>
-      <span class="macro__track"><i style="width:${share.toFixed(1)}%"></i></span>
-    </div>`;
-  };
-  return cell('p', 'Protein', p, 4) + cell('c', 'Carbs', c, 4) + cell('f', 'Fat', f, 9);
-}
-
-function macros(item) {
+/* Grams against a coloured dot. The old three-column grid repeated the words
+   PROTEIN / CARBS / FAT on every card and drew two empty tracks for anything
+   that was mostly one macro, which was most of the menu. */
+function macroChips(item) {
   const n = item.nutrients;
   const [p, c, f] = [n.protein_g, n.total_carbs_g, n.total_fat_g];
-  if (p == null && c == null && f == null && item.calories == null)
-    return `<p class="card__nolabel">No nutrition label published for this item.</p>`;
-  return `<div class="card__macros">${macroCells(p, c, f)}</div>`;
+  if (p == null && c == null && f == null) return '';
+  const chip = (cls, g) => `<span class="m m--${cls}"><i></i>${g == null ? '–' : Math.round(g) + 'g'}</span>`;
+  return `<div class="card__macros">${chip('p', p)}${chip('c', c)}${chip('f', f)}</div>`;
 }
 
-function tags(item, max = 4) {
+function tags(item, max = 3) {
   const out = [];
   if (item.label_implausible)
-    out.push(`<span class="tag tag--warn" title="This label fails a plausibility check — it reads as a batch rather than one serving. Verify against the posted card.">check label</span>`);
+    out.push(`<span class="badge badge--warn" title="This label fails a plausibility check — it reads as a batch rather than one serving. Verify against the posted card.">check label</span>`);
   else if (item.nutrition_suspect)
-    out.push(`<span class="tag tag--warn" title="The macros on this label do not add up to its calorie count.">macros don't add up</span>`);
-  item.diets.forEach(d => out.push(`<span class="tag tag--diet">${esc(titleCase(d))}</span>`));
+    out.push(`<span class="badge badge--warn" title="The macros on this label do not add up to its calorie count.">macros off</span>`);
+  item.diets.forEach(d => out.push(`<span class="badge badge--diet">${esc(titleCase(d))}</span>`));
 
+  // Allergens as quiet text rather than a row of red pills: on a menu where most
+  // items contain something, the pills were louder than the food.
+  let note = '';
   if (!item.allergen_data_published) {
-    out.push(`<span class="tag tag--unknown" title="Nothing was published. This is not a claim that the item is free of anything.">no allergen data</span>`);
-  } else {
-    // Capped, so one 9-allergen item cannot make its card three rows taller
-    // than its neighbours; the detail sheet lists all of them.
-    const shown = item.allergens.slice(0, max);
-    shown.forEach(a => out.push(`<span class="tag tag--allergen">${esc(titleCase(a))}</span>`));
-    if (item.allergens.length > max)
-      out.push(`<span class="tag tag--more">+${item.allergens.length - max}</span>`);
+    note = `<span class="card__note card__note--unknown" title="Nothing was published. This is not a claim that the item is free of anything.">no allergen data</span>`;
+  } else if (item.allergens.length) {
+    const shown = item.allergens.slice(0, max).map(titleCase).join(' · ');
+    const more = item.allergens.length > max ? ` +${item.allergens.length - max}` : '';
+    note = `<span class="card__note">${esc(shown)}${more}</span>`;
   }
-  return `<div class="card__tags">${out.join('')}</div>`;
+  if (!out.length && !note) return '';
+  return `<div class="card__meta">${out.join('')}${note}</div>`;
 }
 
 function card(item, sub) {
@@ -150,11 +211,14 @@ function card(item, sub) {
   const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
   return `<article class="card" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
       aria-label="${esc(item.name)}, details">
-    <div class="card__main">
-      <div class="card__text">
-        <h3 class="card__name">${esc(item.name)}</h3>
-        <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
-      </div>
+    <span class="card__icon" aria-hidden="true">${iconFor(item.name)}</span>
+    <div class="card__body">
+      <h3 class="card__name">${esc(item.name)}</h3>
+      <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
+      ${macroChips(item)}
+      ${tags(item)}
+    </div>
+    <div class="card__end">
       <div class="card__cal">
         <b>${item.calories == null ? '–' : Math.round(item.calories)}</b><span>cal</span>
       </div>
@@ -162,8 +226,6 @@ function card(item, sub) {
               aria-label="${inPlate === '1' ? 'Remove from' : 'Add to'} plate"
               >${inPlate === '1' ? '✓' : '+'}</button>
     </div>
-    ${macros(item)}
-    ${tags(item)}
   </article>`;
 }
 
@@ -394,16 +456,55 @@ function totals() {
   }), { cal: 0, p: 0, c: 0, f: 0 });
 }
 
+/* The FDA's own reference intake, the one every printed label is built on.
+   It is a yardstick, not a goal we invented for the user. */
+const CAL_REFERENCE = 2000;
+
+function renderHero() {
+  const t = totals(), n = state.plate.length;
+  const kcal = t.p * 4 + t.c * 4 + t.f * 9;
+  const share = grams_kcal => (kcal ? grams_kcal / kcal : 0);
+
+  const tile = (cls, label, grams, pct) => `
+    <div class="htile">
+      ${ring(pct, cls, 42)}
+      <div class="htile__text"><b>${Math.round(grams)}g</b><span>${label}</span></div>
+    </div>`;
+
+  $('#hero').innerHTML = `
+    <div class="hero__card">
+      <div class="hero__ring">
+        ${ring(t.cal / CAL_REFERENCE, 'cal', 118)}
+        <div class="hero__center">
+          <b>${Math.round(t.cal).toLocaleString()}</b><span>cal</span>
+        </div>
+      </div>
+      <div class="hero__text">
+        <h2>${n ? 'Your plate' : 'Your plate is empty'}</h2>
+        <p>${n
+          ? `${n} item${n === 1 ? '' : 's'} · ${Math.round(t.cal / CAL_REFERENCE * 100)}% of the
+             2,000 cal label reference`
+          : 'Tap + on any item to add it. Totals land here, and stay per day.'}</p>
+        ${n ? `<button class="linkbtn" id="plateClear">Clear plate</button>` : ''}
+      </div>
+    </div>
+    <div class="hero__macros">
+      ${tile('p', 'Protein', t.p, share(t.p * 4))}
+      ${tile('c', 'Carbs', t.c, share(t.c * 4))}
+      ${tile('f', 'Fat', t.f, share(t.f * 9))}
+    </div>`;
+}
+
 function renderPlate() {
   const t = totals(), n = state.plate.length;
   $('#plateBar').hidden = !n;
   $('#plateCount').hidden = !n;
   $('#plateCount').textContent = n;
-
   if (n) {
     $('#plateCal').textContent = Math.round(t.cal).toLocaleString();
-    $('#plateMacros').innerHTML = macroCells(t.p, t.c, t.f);
+    $('#plateN').textContent = `${n} item${n === 1 ? '' : 's'}`;
   }
+  renderHero();
 
   $$('#content [data-add]').forEach(btn => {
     const on = state.plate.some(p => p.recipe_id === btn.dataset.add);
@@ -674,7 +775,9 @@ function bind() {
 
   $('#plateToggle').addEventListener('click', () => state.plate.length && openPlate());
   $('#plateOpen').addEventListener('click', openPlate);
-  $('#plateClear').addEventListener('click', () => { state.plate = []; savePlate(); render(); });
+  $('#hero').addEventListener('click', e => {
+    if (e.target.closest('#plateClear')) { state.plate = []; savePlate(); render(); }
+  });
 
   const bindField = (sel, key, prop = 'value') => $(sel).addEventListener('input', e => {
     state[key] = prop === 'checked' ? e.target.checked : e.target.value;
