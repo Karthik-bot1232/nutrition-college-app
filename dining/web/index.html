@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dining</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="appbar">
+  <div class="appbar__brandrow">
+    <div class="wrap appbar__top">
+      <div class="brand">
+        <h1 id="collegeName">Dining</h1>
+        <p class="brand__sub" id="dayLabel">&nbsp;</p>
+      </div>
+      <div class="appbar__actions">
+        <button class="iconbtn" id="statsToggle" aria-label="About this data">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.9"/></svg>
+        </button>
+        <button class="iconbtn iconbtn--plate" id="plateToggle" aria-label="Your plate">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
+          <span class="iconbtn__count" id="plateCount" hidden>0</span>
+        </button>
+      </div>
+    </div>
+    <nav class="datestrip" id="dateStrip" aria-label="Date"></nav>
+  </div>
+
+  <div class="toolbar">
+    <div class="wrap">
+      <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal"></div>
+      <div class="pills" id="hallPills" role="tablist" aria-label="Dining hall"></div>
+      <div class="searchrow">
+        <div class="search">
+          <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search" type="search" placeholder="Search items…" autocomplete="off" spellcheck="false">
+          <button class="search__clear" id="searchClear" hidden aria-label="Clear search">&times;</button>
+        </div>
+        <button class="filterbtn" id="filterToggle" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+          <span>Filters</span>
+          <span class="filterbtn__count" id="filterCount" hidden>0</span>
+        </button>
+      </div>
+      <div class="activefilters" id="activeFilters" hidden></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="content"></main>
+
+<div class="platebar" id="plateBar" hidden>
+  <div class="wrap platebar__inner">
+    <div class="platebar__cal">
+      <strong id="plateCal">0</strong><span>cal on your plate</span>
+    </div>
+    <div class="platebar__macros" id="plateMacros"></div>
+    <div class="platebar__actions">
+      <button class="ghostbtn" id="plateClear">Clear</button>
+      <button class="primarybtn" id="plateOpen">View plate</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="filterSheet" class="sheet sheet--filters">
+  <form method="dialog" class="sheet__body">
+    <div class="sheet__head">
+      <div><h2>Filters</h2><p>Narrow the menu down to what you will actually eat</p></div>
+      <button class="sheet__close" value="close" aria-label="Close">&times;</button>
+    </div>
+
+    <section class="fgroup">
+      <h3>Targets</h3>
+      <div class="fgrid">
+        <label class="field">
+          <span>Min protein (g)</span>
+          <input type="number" id="fMinProtein" min="0" step="1" placeholder="any">
+        </label>
+        <label class="field">
+          <span>Max calories</span>
+          <input type="number" id="fMaxCalories" min="0" step="10" placeholder="any">
+        </label>
+      </div>
+    </section>
+
+    <section class="fgroup">
+      <h3>Sort &amp; scope</h3>
+      <div class="fgrid">
+        <label class="field">
+          <span>Sort by</span>
+          <select id="fSort">
+            <option value="name">Name</option>
+            <option value="protein">Protein, high to low</option>
+            <option value="calories">Calories, low to high</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Look across</span>
+          <select id="fScope">
+            <option value="meal">This meal only</option>
+            <option value="day">This whole day</option>
+            <option value="all">Every stored day</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="fgroup">
+      <h3>Diet</h3>
+      <div id="dietChips" class="chipset__row"></div>
+    </section>
+
+    <section class="fgroup">
+      <h3>Exclude allergens</h3>
+      <div id="allergenChips" class="chipset__row"></div>
+      <label class="check"><input type="checkbox" id="fIncludeUnknown">
+        <span>Also show items with no allergen data published</span></label>
+      <p class="hint">Off by default: an item with nothing published is not a claim that
+        it is free of anything.</p>
+    </section>
+
+    <section class="fgroup">
+      <h3>Label quality</h3>
+      <label class="check"><input type="checkbox" id="fHideImplausible">
+        <span>Hide labels that fail a plausibility check</span></label>
+      <p class="hint">Some published labels describe a whole pan rather than one serving.</p>
+    </section>
+
+    <div class="sheet__foot">
+      <button type="button" class="ghostbtn" id="filterReset">Reset all</button>
+      <button class="primarybtn" value="close">Show results</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="sheet" class="sheet"></dialog>
+<script src="/app.js"></script>
+</body>
+</html>
