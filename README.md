@@ -18,10 +18,13 @@ python3 -m dining.export --college umd --days 7 --format csv  -o week.csv
 python3 -m dining.query menu --hall 16 --meal Lunch
 python3 -m dining.query find --min-protein 25 --max-calories 500 --without gluten
 python3 -m dining.query stats
+
+# 3. Or browse it in a browser
+python3 -m dining.serve --open          # http://127.0.0.1:8000
 ```
 
-`refresh` writes, `export` only reads. `weekly_refresh.sh` runs both and drops
-the week's files in `exports/`.
+`refresh` writes, `export` and `serve` only read. `weekly_refresh.sh` runs the
+first two and drops the week's files in `exports/`.
 
 ## Export format
 
@@ -52,6 +55,58 @@ A `null` means the label did not publish that nutrient.
 
 **CSV** is the flat counterpart: one row per appearance, 35 columns, every
 nutrient its own column. Use it for spreadsheets and quick analysis.
+
+## The web UI
+
+`dining.serve` puts the stored week behind a small read-only JSON API and a
+single-page front end.
+
+- **Browse** a date, meal and hall, grouped by station. `All halls` puts the
+  three halls side by side for one meal. Stations collapse, and a jump bar
+  indexes them -- lunch at South Campus runs to 23 stations and 300+ rows.
+- **Search and filter** on name, protein, calories, diet and allergens, scoped
+  to one meal, a whole day, or every stored day. A recipe served at three halls
+  collapses to one card listing where to find it.
+- **Item detail** shows the full label -- all 17 nutrients, ingredients, both
+  allergen sources side by side (the label page and the menu-row icons, which
+  disagree), every place it is served that week, when it was scraped, and a link
+  to the source page.
+- **About this data** (the ⓘ button) is `query stats` in the UI: coverage, what
+  the source never published, and how many labels fail each check.
+- **Plate**: add items for a running per-day calorie and macro total, kept in
+  the browser's localStorage. Nothing is written back to the database.
+
+Endpoints are `/api/meta`, `/api/menu`, `/api/search`, `/api/item` and
+`/api/stats`; every one is a GET returning JSON, so the front end is replaceable.
+
+Stdlib only -- `http.server` and `sqlite3`, no framework, no build step, and the
+front end has no dependencies. It serves what `refresh` already stored, so a
+stale database shows a stale menu.
+
+```bash
+python3 -m dining.serve --port 8080 --college umd --open
+```
+
+## Two ways a published label can be wrong
+
+`nutrition_suspect` (above) catches labels that contradict themselves. It cannot
+catch the other failure, because those labels are internally consistent: every
+macro is scaled up together, a whole pan published as one portion. UMD serves a
+tilapia at 283g protein / 2051 kcal / 28,384mg sodium for "1 ea" -- the macros
+reconcile to the calories perfectly.
+
+`serve._label_implausible` is the UI-side check for those. The sharp test is
+calorie density, which needs a weighed portion: pure fat is ~255 kcal/oz, and
+the densest thing UMD publishes (olive oil) measures 250.6, so anything above
+260 kcal/oz cannot be food. For "1 each" portions there is no weight to divide
+by, so it falls back to absolute bounds -- over 1000 kcal, 80g protein or
+5000mg sodium. Together they flag 2.2% of UMD recipes.
+
+The absolute bounds do catch a few genuinely enormous composite sandwiches,
+which is the right way to be wrong here. Cards get a `check label` badge, the
+protein sort drops flagged items to the bottom, and published numbers are still
+shown unchanged -- these are the items that would otherwise own the top of every
+high-protein search.
 
 ## Reading the allergen fields
 
