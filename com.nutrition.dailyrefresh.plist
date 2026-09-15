@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.nutrition.dailyrefresh</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/karthikvunnava/Nutrition College APP/daily_refresh.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/karthikvunnava/Nutrition College APP</string>
+
+    <!-- 5:00 every morning. launchd runs a missed job when the Mac wakes,
+         which cron does not do -- at 5am the machine is usually asleep. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>5</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/karthikvunnava/Nutrition College APP/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/karthikvunnava/Nutrition College APP/logs/launchd.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
