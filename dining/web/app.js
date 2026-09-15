@@ -20,68 +20,6 @@ const DIETS = ['vegan', 'vegetarian', 'halal'];
 const SCOPE_LABEL = { meal: 'This meal only', day: 'This whole day', all: 'Every stored day' };
 const SORT_LABEL = { name: 'Name', protein: 'Protein, high to low', calories: 'Calories, low to high' };
 
-/* The source publishes no photographs, and a page of identical grey rows is the
-   result. One glyph per item is the cheapest thing that gives a menu a shape you
-   can scan. Ordered: the first pattern that matches wins, so "chicken noodle
-   soup" reads as soup, not chicken. */
-const ICONS = [
-  // Word boundaries throughout: "chip" without one matches chipotle, and "tea"
-  // matches steak. Dishes before ingredients, so a chicken soup reads as soup.
-  [/\b(pizza)\b/, '🍕'], [/\b(tacos?)\b/, '🌮'], [/\b(burritos?|quesadillas?|enchiladas?|wraps?)\b/, '🌯'],
-  [/\b(sushi|sashimi|poke)\b/, '🍣'], [/\b(dumplings?|potstickers?|gyoza|wontons?)\b/, '🥟'],
-  [/\b(soup|broth|chowder|bisque|stew|chili|ramen|pho)\b/, '🍲'],
-  [/\b(burgers?|cheeseburgers?|hamburgers?)\b/, '🍔'],
-  [/\b(sandwich(es)?|panini|hoagie|blt|sub)\b/, '🥪'],
-  [/\b(salad|slaw|greens|lettuce)\b/, '🥗'],
-  [/\b(pasta|spaghetti|penne|noodles?|linguine|ziti|macaroni|lasagna|alfredo|marinara|ravioli)\b/, '🍝'],
-  [/\b(curry|tikka|masala|biryani)\b/, '🍛'],
-  [/\b(rice|pilaf|risotto|quinoa|couscous|cous cous|arroz)\b/, '🍚'],
-  [/\b(pancakes?|waffles?|crepes?)\b|french toast/, '🥞'],
-  [/\b(oatmeal|granola|cereal|porridge|grits|oats)\b/, '🥣'],
-  [/\b(ice cream|gelato|sorbet|sundae|frozen yogurt)\b/, '🍨'],
-  [/\b(cake|brownie|cupcake|pastry|danish|muffin|cheesecake|pudding|scone|custard|mousse)\b/, '🍰'],
-  [/\b(cookies?|biscotti)\b/, '🍪'], [/\b(doughnuts?|donuts?)\b/, '🍩'],
-  [/\b(pies?|cobbler|crisp|tarts?)\b/, '🥧'],
-  [/\b(bagels?|toast|bread|biscuits?|baguette|croissant|buns?|rolls?|cornbread)\b/, '🍞'],
-  [/\b(pita|tortillas?|naan|flatbread|hummus|falafel)\b/, '🫓'],
-  [/\b(pretzels?|crackers?|chips?)\b/, '🥨'],
-  [/\b(eggs?|omelets?|omelettes?|frittata|scrambled)\b/, '🍳'],
-  [/\b(bacon|sausages?|pork|ham|chorizo|pepperoni)\b/, '🥓'], [/\b(turkey)\b/, '🦃'],
-  [/\b(chicken|wings?|poultry|nuggets?)\b/, '🍗'],
-  [/\b(beef|steak|brisket|roast|lamb|veal|meatloaf)\b/, '🥩'],
-  [/\b(meatballs?|kofta)\b/, '🧆'],
-  [/\b(shrimp|crab|lobster|scallops?|clams?|mussels?|calamari)\b/, '🦐'],
-  [/\b(fish|salmon|tilapia|cod|tuna|pollock|catfish|haddock)\b/, '🐟'],
-  [/\b(tofu|tempeh|seitan|plant.based|vegan)\b/, '🌱'],
-  [/\b(beans?|lentils?|chickpeas?|edamame|hummus)\b/, '🫘'],
-  [/\b(potato(es)?|fries|tots|hash browns?|yuca|cassava)\b/, '🥔'],
-  [/\b(broccoli|spinach|kale|asparagus|zucchini|squash|peas?|green beans?|vegetables?|veggie|brussels?|cabbage|cauliflower|beets|celery|artichokes?|bok choy|coleslaw|sprouts)\b/, '🥦'],
-  [/\b(carrots?)\b/, '🥕'], [/\b(corn)\b/, '🌽'], [/\b(mushrooms?)\b/, '🍄'],
-  [/\b(tomatoes?|tomato|salsa)\b/, '🍅'], [/\b(onions?)\b/, '🧅'],
-  [/\b(peppers?|jalape\S*)\b/, '🫑'], [/\b(avocado|guacamole)\b/, '🥑'],
-  [/\b(cucumbers?|pickles?)\b/, '🥒'], [/\b(eggplant)\b/, '🍆'],
-  [/\b(cheese|mozzarella|cheddar|parmesan|feta|provolone)\b/, '🧀'],
-  [/\b(yogurt|milk|cream)\b/, '🥛'], [/\b(butter|margarine|oil|ghee)\b/, '🧈'],
-  [/\b(syrup|honey|jam|jelly|preserves?)\b/, '🍯'],
-  [/\b(apples?)\b/, '🍎'], [/\b(bananas?)\b/, '🍌'],
-  [/\S*berr(y|ies)\b/, '🍓'],
-  [/\b(oranges?|citrus|clementine|tangerine)\b/, '🍊'], [/\b(grapes?)\b/, '🍇'],
-  [/\b(melon|watermelon|cantaloupe)\b/, '🍉'], [/\b(pineapple)\b/, '🍍'],
-  [/\b(peach(es)?|nectarine|mango)\b/, '🍑'], [/\b(coconut)\b/, '🥥'], [/\b(fruit)\b/, '🍎'],
-  [/\b(coffee|espresso|latte|tea)\b/, '☕'], [/\b(juice|lemonade|smoothie|punch)\b/, '🧃'],
-  [/\b(sauce|gravy|dressing|aioli|vinaigrette|vinagrette|dip|ketchup|mustard|mayo|mayonnaise|vinegar|glaze|pesto|chimichurri|relish)\b/, '🥫'],
-  [/\b(nuts?|almonds?|peanuts?|cashews?|pecans?|walnuts?|seeds?)\b/, '🥜'],
-  [/\b(chocolate|cocoa|fudge)\b/, '🍫'], [/\b(cherry|cherries)\b/, '🍒'],
-  [/\b(basil|cilantro|parsley|garlic|ginger|herbs?|scallions?|chives)\b/, '🌿'],
-  [/\b(lemon|lime)\b/, '🍋'],
-];
-
-function iconFor(name) {
-  const n = name.toLowerCase();
-  for (const [re, glyph] of ICONS) if (re.test(n)) return glyph;
-  return '🍽️';
-}
-
 /** An SVG progress ring. `pct` is 0-1; the arc starts at twelve o'clock. */
 function ring(pct, cls, size, label) {
   const r = 46, c = 2 * Math.PI * r;
@@ -211,7 +149,6 @@ function card(item, sub) {
   const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
   return `<article class="card" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
       aria-label="${esc(item.name)}, details">
-    <span class="card__icon" aria-hidden="true">${iconFor(item.name)}</span>
     <div class="card__body">
       <h3 class="card__name">${esc(item.name)}</h3>
       <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
