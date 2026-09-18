@@ -111,18 +111,38 @@ function scopeText() {
 
 /* ------------------------------------------------------------------ pieces */
 
-/* Grams against a coloured dot. The old three-column grid repeated the words
-   PROTEIN / CARBS / FAT on every card and drew two empty tracks for anything
-   that was mostly one macro, which was most of the menu. */
+/* One segmented strip: P / C / F, each letter carrying its own meaning.
+   This used to be three coloured dots and three numbers -- "16g 13g 10g" --
+   which asked the reader to know that red meant protein, and told a colourblind
+   reader nothing at all. Colour is now reinforcement on top of a label rather
+   than the only thing distinguishing the three. Keeping them in one bounded
+   strip is the other half of it: on a card with a name, a portion, badges and
+   an allergen line, three loose numbers read as more of the same pile. */
+const MACROS = [
+  ['p', 'P', 'Protein', 'protein_g'],
+  ['c', 'C', 'Carbs', 'total_carbs_g'],
+  ['f', 'F', 'Fat', 'total_fat_g'],
+];
+
 function macroChips(item) {
   const n = item.nutrients;
-  const [p, c, f] = [n.protein_g, n.total_carbs_g, n.total_fat_g];
-  if (p == null && c == null && f == null) return '';
-  const chip = (cls, g) => `<span class="m m--${cls}"><i></i>${g == null ? '–' : Math.round(g) + 'g'}</span>`;
-  return `<div class="card__macros">${chip('p', p)}${chip('c', c)}${chip('f', f)}</div>`;
+  if (MACROS.every(([, , , key]) => n[key] == null)) return '';
+  const cells = MACROS.map(([cls, abbr, label, key]) => {
+    const g = n[key];
+    const shown = g == null ? '–' : Math.round(g) + 'g';
+    const spoken = g == null ? `${label} not published` : `${label} ${Math.round(g)} grams`;
+    return `<span class="m m--${cls}">
+      <span class="m__k" aria-hidden="true">${abbr}</span
+      ><span class="m__v" aria-hidden="true">${shown}</span
+      ><span class="sr">${spoken}</span></span>`;
+  }).join('');
+  return `<div class="card__macros">${cells}</div>`;
 }
 
-function tags(item, max = 3) {
+// Two allergens then a count, not three: the chip sits beside the diet badges
+// and the third name is what pushes the row onto a second line on a phone,
+// which costs a line on every card in a list that runs to 300 of them.
+function tags(item, max = 2) {
   const out = [];
   if (item.label_implausible)
     out.push(`<span class="badge badge--warn" title="This label fails a plausibility check — it reads as a batch rather than one serving. Verify against the posted card.">check label</span>`);
@@ -130,15 +150,19 @@ function tags(item, max = 3) {
     out.push(`<span class="badge badge--warn" title="The macros on this label do not add up to its calorie count.">macros off</span>`);
   item.diets.forEach(d => out.push(`<span class="badge badge--diet">${esc(titleCase(d))}</span>`));
 
-  // Allergens as quiet text rather than a row of red pills: on a menu where most
-  // items contain something, the pills were louder than the food.
+  // Allergens stay quieter than the diet badges -- on a menu where most items
+  // contain something, loud pills drown out the food -- but they are a chip like
+  // everything else on this row now. As italic text wedged between badges they
+  // read as a stray caption rather than a property of the item, which is most of
+  // why the row looked unsorted. "Contains" is what separates them from a diet
+  // badge at a glance: "Dairy" beside "Vegan" is otherwise ambiguous.
   let note = '';
   if (!item.allergen_data_published) {
-    note = `<span class="card__note card__note--unknown" title="Nothing was published. This is not a claim that the item is free of anything.">no allergen data</span>`;
+    note = `<span class="badge badge--unknown" title="Nothing was published. This is not a claim that the item is free of anything.">No allergen data</span>`;
   } else if (item.allergens.length) {
-    const shown = item.allergens.slice(0, max).map(titleCase).join(' · ');
+    const shown = item.allergens.slice(0, max).map(titleCase).join(', ');
     const more = item.allergens.length > max ? ` +${item.allergens.length - max}` : '';
-    note = `<span class="card__note">${esc(shown)}${more}</span>`;
+    note = `<span class="badge badge--allergen" title="Contains ${esc(item.allergens.map(titleCase).join(', '))}">Contains ${esc(shown)}${more}</span>`;
   }
   if (!out.length && !note) return '';
   return `<div class="card__meta">${out.join('')}${note}</div>`;

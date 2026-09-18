@@ -23,6 +23,14 @@
   --fat:     #3b7ff2;
   --track:   #e9ebf0;
 
+  /* Text-safe variants of the three macro hues. The fills above are chosen to
+     read as fills -- rings, bars, dots -- and as 10px type on a near-white chip
+     the orange lands at 2.1:1. These are the same hues taken dark enough to
+     pass 4.5:1, and they are used only where a macro colour carries a letter. */
+  --protein-ink: #b32a2e;
+  --carbs-ink:   #7d5200;
+  --fat-ink:     #1a56c4;
+
   --warn-bg: #fff6e0;
   --warn-text: #8a5a00;
   --warn-border: #f5dca0;
@@ -58,6 +66,11 @@
     --carbs:   #f5b13f;
     --fat:     #6ba4ff;
     --track:   #262b33;
+
+    /* On a dark chip the fills already clear 6:1, so ink and fill are the same. */
+    --protein-ink: #ff6b6f;
+    --carbs-ink:   #f5b13f;
+    --fat-ink:     #6ba4ff;
 
     --warn-bg: #2c2412;
     --warn-text: #f3d18d;
@@ -339,34 +352,54 @@ main { padding-top: 22px; }
 }
 .card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 
-.card__body { min-width: 0; }
+.card__body { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .card__name { margin: 0; font-size: 15px; font-weight: 640; line-height: 1.3;
               letter-spacing: -.012em; }
 .card__sub {
   margin: 2px 0 0; font-size: 12px; color: var(--faint);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 
-.card__macros { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; }
+/* One bounded strip rather than three loose numbers. The segments are divided
+   rather than merely spaced, so the group reads as a single piece of data --
+   the row already carries a name, a portion and a chip set, and a fourth run of
+   free-floating figures is what made it look unsorted. */
+.card__macros {
+  display: inline-flex; align-items: stretch; margin-top: 8px; max-width: 100%;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
 .m {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12.5px; font-weight: 640; font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 10px;
+  font-variant-numeric: tabular-nums;
 }
-.m i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.m--p { color: var(--protein); } .m--p i { background: var(--protein); }
-.m--c { color: var(--carbs); }   .m--c i { background: var(--carbs); }
-.m--f { color: var(--fat); }     .m--f i { background: var(--fat); }
+.m + .m { border-left: 1px solid var(--border); }
+/* The letter is the label; the colour only reinforces it. Read in greyscale,
+   or by someone who has not learned the palette, P/C/F still says which is which. */
+.m__k { font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.m__v { font-size: 12.5px; font-weight: 650; color: var(--text); }
+.m--p .m__k { color: var(--protein-ink); }
+.m--c .m__k { color: var(--carbs-ink); }
+.m--f .m__k { color: var(--fat-ink); }
 
-.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-top: 7px; }
+.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
 .badge {
-  font-size: 10.5px; font-weight: 680; padding: 2.5px 8px; border-radius: 999px;
-  white-space: nowrap;
+  font-size: 11px; font-weight: 660; padding: 3px 9px; border-radius: 999px;
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
 }
 .badge--diet { background: var(--accent-soft); color: var(--accent); }
 .badge--warn { background: var(--warn-bg); color: var(--warn-text); }
-.card__note { font-size: 11.5px; color: var(--faint); min-width: 0;
-              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card__note--unknown { font-style: italic; }
+/* Outlined, not filled: allergens have to stay legible without competing with
+   the diet badges, which are the thing most people are scanning for. */
+.badge--allergen { border: 1px solid var(--border-strong); color: var(--muted); font-weight: 600; }
+.badge--unknown { border: 1px dashed var(--border-strong); color: var(--muted); font-weight: 600; }
+
+/* Visible to screen readers only: the macro strip is abbreviated on screen, so
+   the spoken version carries the full words. */
+.sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 .card__end { display: flex; align-items: flex-start; gap: 10px; flex: none; }
 .card__cal { text-align: right; white-space: nowrap; line-height: 1.05; }
@@ -376,10 +409,15 @@ main { padding-top: 22px; }
                   text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
 
 .add {
-  width: 34px; height: 34px; flex: none; border-radius: 12px; margin-top: -2px;
+  position: relative;
+  width: 36px; height: 36px; flex: none; border-radius: 12px; margin-top: -2px;
   border: 0; background: var(--surface-2); color: var(--muted);
   font-size: 19px; line-height: 1; display: grid; place-items: center; transition: .12s;
+  touch-action: manipulation;
 }
+/* The button reads as 36px but takes taps across the full 44px minimum, so it
+   does not need to grow and stretch every row in a 300-item list to do it. */
+.add::after { content: ""; position: absolute; inset: -4px; }
 .add:hover { background: var(--track); color: var(--text); }
 .add[data-in="1"] { background: var(--ink); color: var(--on-ink); }
 
