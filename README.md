@@ -1,16 +1,34 @@
 # College Nutrition Scraper
 
-Pulls a week of dining-hall menus and full nutrition labels from a college's
-nutrition site and exports them in a stable format. Currently onboarded:
-**University of Maryland** (`umd`).
+Pulls dining-hall menus and full nutrition labels from a college's nutrition
+site into a **Supabase (Postgres)** database, and exports them in a stable
+format. Currently onboarded: **University of Maryland** (`umd`).
+
+The database is the source of truth, not a cache. Scraping only fills its gaps:
+a menu slot (date / hall / meal) already stored is never fetched again, and a
+recipe's label is fetched once and then read from the database forever after.
+A weekly run therefore costs only the days the college has newly published.
+
+## Setup
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env        # then paste your connection string into it
+```
+
+See [Setting up Supabase](#setting-up-supabase) for where that string comes
+from. Every command below reads `DATABASE_URL` from `.env`, or takes an
+explicit `--dsn`.
 
 ## Usage
 
 ```bash
-# 1. Pull the published week into the database (network; ~15 min for a full week)
-python3 -m dining.refresh --college umd --days 7
+# 1. Fill in whatever the database is missing (network; only the new days)
+python3 -m dining.refresh --college umd --days 14
+python3 -m dining.refresh --college umd --days 14 --force   # re-scrape anyway
 
-# 2. Export that week
+# 2. Export a window
 python3 -m dining.export --college umd --days 7 --format json -o week.json
 python3 -m dining.export --college umd --days 7 --format csv  -o week.csv
 
@@ -24,7 +42,64 @@ python3 -m dining.serve --open          # http://127.0.0.1:8000
 ```
 
 `refresh` writes, `export` and `serve` only read. `weekly_refresh.sh` runs the
-first two and drops the week's files in `exports/`.
+first two and drops the window's files in `exports/`.
+
+## Setting up Supabase
+
+1. Create a project at [supabase.com](https://supabase.com) (the free tier is
+   far more than this needs -- a full year of UMD menus is a few hundred MB).
+   Save the database password it asks you to set; you need it in step 3.
+2. Dashboard -> **Project Settings** -> **Database** -> **Connection string** ->
+   **Transaction pooler**. That is the pooled port (6543), which is what
+   Supabase recommends for short-lived connections, and all this app makes are
+   short-lived connections.
+3. Copy it into `.env` as `DATABASE_URL`, replacing `[YOUR-PASSWORD]` with the
+   password from step 1.
+4. Create the tables and pull the first window:
+
+   ```bash
+   python3 -m dining.refresh --college umd --days 14
+   ```
+
+   The schema is created on first connect, so there is no separate migration
+   step and no SQL to paste into the dashboard.
+
+`.env` is gitignored, and the password in it is full write access to your data:
+it does not belong in a commit, a screenshot, or a pasted log.
+
+### Coming from the old local `nutrition.db`
+
+```bash
+python3 -m dining.migrate              # copies ./nutrition.db into Supabase
+python3 -m dining.migrate --dry-run    # convert everything, write nothing
+```
+
+It only reads the sqlite file, and every row is an upsert, so running it twice
+changes nothing and a re-run after a failure just finishes the job. Keep
+`nutrition.db` around until you are satisfied, then delete it -- nothing reads
+it any more.
+
+## Running it weekly
+
+`weekly_refresh.sh` tops up every registered college and writes the window's
+exports. `com.nutrition.weeklyrefresh.plist` runs it Monday at 05:00 via
+launchd, which (unlike cron) runs a job it missed once the Mac wakes up.
+
+```bash
+cp com.nutrition.weeklyrefresh.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.nutrition.weeklyrefresh.plist
+launchctl start com.nutrition.weeklyrefresh     # run it once now
+```
+
+Weekly rather than daily because nothing already stored is re-fetched, so six
+of seven daily runs would find nothing to do. The trade is that a menu the
+college edits after publishing keeps what it said when first scraped; re-pull
+deliberately when that matters, with `FORCE=1 ./weekly_refresh.sh`.
+
+The script runs `./.venv/bin/python`, not `python3`. That is not a style
+preference: launchd runs with a bare `PATH`, `python3` there resolves to
+`/usr/bin/python3`, and that interpreter has none of this project's
+dependencies. Check `logs/launchd.err.log` if a scheduled run goes missing.
 
 ## Export format
 
@@ -79,9 +154,14 @@ single-page front end.
 Endpoints are `/api/meta`, `/api/menu`, `/api/search`, `/api/item` and
 `/api/stats`; every one is a GET returning JSON, so the front end is replaceable.
 
-Stdlib only -- `http.server` and `sqlite3`, no framework, no build step, and the
-front end has no dependencies. It serves what `refresh` already stored, so a
+No framework and no build step -- `http.server` plus `psycopg`, and the front
+end has no dependencies at all. It serves what `refresh` already stored, so a
 stale database shows a stale menu.
+
+The server takes a connection from a small pool for each request rather than
+holding one per thread. `ThreadingHTTPServer` starts a thread per request, so
+a connection per thread means a Postgres connection per browser request, and
+Supabase caps those well below what a few reloads would reach.
 
 ```bash
 python3 -m dining.serve --port 8080 --college umd --open

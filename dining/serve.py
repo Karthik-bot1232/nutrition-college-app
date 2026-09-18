@@ -10,13 +10,14 @@ Stdlib only, so it runs wherever the scraper runs.
 import argparse
 import json
 import re
-import threading
 import webbrowser
 from datetime import date
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+from psycopg.types.json import Jsonb
 
 from . import db
 from .allergens import CANONICAL, normalize
@@ -27,9 +28,18 @@ from .models import NUTRIENT_FIELDS
 WEB_ROOT = Path(__file__).resolve().parent / "web"
 CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}
 
-SELECT_JOINED = """
-SELECT e.service_date, e.meal, e.location_id, e.location_name, e.station,
-       e.portion, e.tags, i.*
+#: Exactly what `_item_json` reads for a card, rather than `i.*`. `ingredients`
+#: is by far the widest column and no card shows it, so selecting it shipped a
+#: paragraph per row across the country to be thrown away. Cards do not use
+#: `allergens_raw`, `source_url` or `fetched_at` either -- `api_item` selects
+#: those for the one recipe whose detail panel is open.
+_CARD_COLUMNS = ", ".join(f"i.{column}" for column in (
+    "external_id", "name", "serving_size", "allergens", "has_allergen_data",
+    "diets", *NUTRIENT_FIELDS))
+
+SELECT_JOINED = f"""
+SELECT e.service_date::text AS service_date, e.meal, e.location_id,
+       e.location_name, e.station, e.portion, e.tags, {_CARD_COLUMNS}
 FROM menu_entries e
 JOIN items i ON i.college = e.college AND i.external_id = e.item_external_id
 """
@@ -80,18 +90,18 @@ def _item_json(row, full: bool = False) -> dict:
         "serving_size": row["serving_size"],
         "calories": row["calories"],
         "nutrients": {f: row[f] for f in NUTRIENT_FIELDS if f != "calories"},
-        "allergens": json.loads(row["allergens"] or "[]"),
+        "allergens": row["allergens"] or [],
         "allergen_data_published": bool(row["has_allergen_data"]),
-        "diets": json.loads(row["diets"] or "[]"),
+        "diets": row["diets"] or [],
         "has_nutrition": row["calories"] is not None,
         "nutrition_suspect": _nutrition_suspect(row),
         "label_implausible": _label_implausible(row),
     }
     if full:
-        item["allergens_as_published"] = json.loads(row["allergens_raw"] or "[]")
+        item["allergens_as_published"] = row["allergens_raw"] or []
         item["ingredients"] = row["ingredients"]
         item["source_url"] = row["source_url"]
-        item["fetched_at"] = row["fetched_at"]
+        item["fetched_at"] = row["fetched_at"].isoformat() if row["fetched_at"] else None
     return item
 
 
@@ -103,19 +113,20 @@ def _placement(row) -> dict:
         "location_name": row["location_name"],
         "station": row["station"],
         "portion": row["portion"],
-        "menu_tags": json.loads(row["tags"] or "[]"),
+        "menu_tags": row["tags"] or [],
     }
 
 
 def api_meta(conn, college: str) -> dict:
     adapter = get_adapter(college)
     dates = [r["service_date"] for r in conn.execute(
-        "SELECT DISTINCT service_date FROM menu_entries WHERE college = ? ORDER BY 1",
-        (college,))]
+        "SELECT DISTINCT service_date::text AS service_date FROM menu_entries "
+        "WHERE college = ? ORDER BY 1", (college,))]
     counts = {f"{r['service_date']}|{r['meal']}|{r['location_id']}": r["n"]
               for r in conn.execute(
-                  "SELECT service_date, meal, location_id, COUNT(*) AS n "
-                  "FROM menu_entries WHERE college = ? GROUP BY 1, 2, 3", (college,))}
+                  "SELECT service_date::text AS service_date, meal, location_id, "
+                  "COUNT(*) AS n FROM menu_entries WHERE college = ? "
+                  "GROUP BY 1, 2, 3", (college,))}
     return {
         "college": college,
         "college_name": adapter.name,
@@ -151,7 +162,7 @@ def api_menu(conn, college: str, q: dict) -> dict:
         })
         item = _item_json(row)
         item["portion"] = row["portion"]
-        item["menu_tags"] = json.loads(row["tags"] or "[]")
+        item["menu_tags"] = row["tags"] or []
         hall["stations"].setdefault(row["station"] or "Other", []).append(item)
 
     # The adapter's own order, so halls do not shuffle between requests.
@@ -178,8 +189,8 @@ def api_search(conn, college: str, q: dict) -> dict:
 
     term = q.get("q", [""])[0].strip()
     if term:
-        sql += " AND (i.name LIKE ?" + (" OR i.ingredients LIKE ?)"
-                                        if q.get("ingredients") else ")")
+        sql += " AND (i.name ILIKE ?" + (" OR i.ingredients ILIKE ?)"
+                                         if q.get("ingredients") else ")")
         params.append(f"%{term}%")
         if q.get("ingredients"):
             params.append(f"%{term}%")
@@ -205,15 +216,16 @@ def api_search(conn, college: str, q: dict) -> dict:
         canonical = normalize(raw)
         if canonical is None:
             return {"error": f"Unknown allergen {raw!r}"}
-        sql += " AND i.allergens NOT LIKE ?"
-        params.append(f'%"{canonical}"%')
+        # jsonb containment, so "nuts" can no longer match "tree_nuts".
+        sql += " AND NOT (i.allergens @> ?)"
+        params.append(Jsonb([canonical]))
     hide_unknown = excluded and not q.get("include_unknown")
     if hide_unknown:
-        sql += " AND i.has_allergen_data = 1"
+        sql += " AND i.has_allergen_data"
     for diet in q.get("diet", []):
         if diet:
-            sql += " AND i.diets LIKE ?"
-            params.append(f'%"{diet}"%')
+            sql += " AND i.diets @> ?"
+            params.append(Jsonb([diet]))
 
     rows = conn.execute(sql, params).fetchall()
 
@@ -256,7 +268,8 @@ def api_item(conn, college: str, q: dict) -> dict:
 
     item = _item_json(row, full=True)
     item["served_at"] = [_placement(r) for r in conn.execute(
-        "SELECT service_date, meal, location_id, location_name, station, portion, tags "
+        "SELECT service_date::text AS service_date, meal, location_id, location_name, "
+        "       station, portion, tags "
         "FROM menu_entries WHERE college = ? AND item_external_id = ? "
         "ORDER BY service_date, meal", (college, recipe_id))]
     return item
@@ -264,10 +277,16 @@ def api_item(conn, college: str, q: dict) -> dict:
 
 def api_stats(conn, college: str) -> dict:
     """Coverage and label quality for everything stored, i.e. `query stats` for the UI."""
-    items = conn.execute("SELECT * FROM items WHERE college = ?", (college,)).fetchall()
+    # Only the columns the counters below read: this scans every stored recipe,
+    # and pulling ingredients too made it the slowest endpoint by an order of
+    # magnitude once the database stopped being a local file.
+    items = conn.execute(
+        "SELECT calories, has_allergen_data, fetched_at, serving_size, "
+        "       protein_g, total_fat_g, total_carbs_g, sodium_mg "
+        "FROM items WHERE college = ?", (college,)).fetchall()
     rows = conn.execute(
         "SELECT COUNT(*) AS n, COUNT(DISTINCT service_date) AS days, "
-        "MIN(service_date) AS first, MAX(service_date) AS last "
+        "MIN(service_date)::text AS first, MAX(service_date)::text AS last "
         "FROM menu_entries WHERE college = ?", (college,)).fetchone()
     fetched = [i["fetched_at"] for i in items if i["fetched_at"]]
 
@@ -285,7 +304,7 @@ def api_stats(conn, college: str) -> dict:
         "without_allergen_data": sum(1 for i in items if not i["has_allergen_data"]),
         "nutrition_suspect": sum(1 for i in items if _nutrition_suspect(i)),
         "label_implausible": sum(1 for i in items if _label_implausible(i)),
-        "last_fetched": max(fetched) if fetched else None,
+        "last_fetched": max(fetched).isoformat() if fetched else None,
         "per_meal": per_meal,
     }
 
@@ -296,29 +315,30 @@ ROUTES = {"/api/menu": api_menu, "/api/search": api_search, "/api/item": api_ite
 class Handler(BaseHTTPRequestHandler):
     server_version = "dining/1.0"
 
-    def __init__(self, *args, db_path: str, college: str, **kwargs):
-        self.db_path, self.college = db_path, college
+    def __init__(self, *args, college: str, **kwargs):
+        self.college = college
         super().__init__(*args, **kwargs)
-
-    @property
-    def conn(self):
-        """One connection per thread; SQLite objects are not shareable across them."""
-        local = self.server.local
-        if not hasattr(local, "conn"):
-            local.conn = db.connect(self.db_path)
-        return local.conn
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        try:
-            if parsed.path == "/api/meta":
-                return self._json(api_meta(self.conn, self.college))
-            if parsed.path == "/api/stats":
-                return self._json(api_stats(self.conn, self.college))
-            handler = ROUTES.get(parsed.path)
-            if handler:
-                return self._json(handler(self.conn, self.college, parse_qs(parsed.query)))
+        if not parsed.path.startswith("/api/"):
             return self._static(parsed.path)
+        try:
+            # One pooled connection for the length of the request. This server
+            # runs a thread per request, so holding a connection per thread
+            # would open a Postgres connection per browser request and run
+            # Supabase out of them within a few reloads.
+            with self.server.pool.connection() as raw:
+                conn = db.Database(raw)
+                if parsed.path == "/api/meta":
+                    return self._json(api_meta(conn, self.college))
+                if parsed.path == "/api/stats":
+                    return self._json(api_stats(conn, self.college))
+                handler = ROUTES.get(parsed.path)
+                if handler:
+                    return self._json(
+                        handler(conn, self.college, parse_qs(parsed.query)))
+            self.send_error(404)
         except Exception as exc:  # a broken query should not kill the server
             self._json({"error": f"{type(exc).__name__}: {exc}"}, status=500)
 
@@ -353,23 +373,24 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--college", default="umd")
-    parser.add_argument("--db", default=str(db.DEFAULT_DB))
+    parser.add_argument("--dsn", help="Postgres connection string (default: $DATABASE_URL)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--open", action="store_true", help="open a browser window")
     args = parser.parse_args()
 
-    conn = db.connect(args.db)
-    days = conn.execute("SELECT COUNT(DISTINCT service_date) FROM menu_entries WHERE college = ?",
-                        (args.college,)).fetchone()[0]
-    conn.close()
+    connections = db.pool(args.dsn)
+    with connections.connection() as raw:
+        days = db.Database(raw).execute(
+            "SELECT COUNT(DISTINCT service_date) AS n FROM menu_entries WHERE college = ?",
+            (args.college,)).fetchone()["n"]
     if not days:
         raise SystemExit(f"No menus stored for {args.college!r}. "
                          f"Run: python3 -m dining.refresh --college {args.college}")
 
-    handler = partial(Handler, db_path=args.db, college=args.college)
+    handler = partial(Handler, college=args.college)
     httpd = ThreadingHTTPServer((args.host, args.port), handler)
-    httpd.local = threading.local()
+    httpd.pool = connections
     url = f"http://{args.host}:{args.port}"
     print(f"{get_adapter(args.college).name} — {days} days of menus\n"
           f"Serving {url}  (ctrl-c to stop)", flush=True)
@@ -379,6 +400,8 @@ def main():
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nstopped")
+    finally:
+        connections.close()
 
 
 if __name__ == "__main__":
