@@ -1,12 +1,13 @@
 /* Local UI for the dining scraper. No build step, no dependencies. */
 
 :root {
-  --bg: #f2f3f5;
+  --bg: #f4f5f7;
   --surface: #ffffff;
-  --surface-2: #f6f7f9;
+  --surface-2: #f4f5f7;
+  --tile: #f7f8fa;
   --text: #0b0d12;
   --muted: #646d7c;
-  --faint: #939ba8;
+  --faint: #666f7e;
   --border: #e7e9ee;
   --border-strong: #d5d9e0;
 
@@ -23,6 +24,14 @@
   --fat:     #3b7ff2;
   --track:   #e9ebf0;
 
+  /* Text-safe variants of the three macro hues. The fills above are chosen to
+     read as fills -- rings, bars, dots -- and as 10px type on a near-white chip
+     the orange lands at 2.1:1. These are the same hues taken dark enough to
+     pass 4.5:1, and they are used only where a macro colour carries a letter. */
+  --protein-ink: #b32a2e;
+  --carbs-ink:   #7d5200;
+  --fat-ink:     #1a56c4;
+
   --warn-bg: #fff6e0;
   --warn-text: #8a5a00;
   --warn-border: #f5dca0;
@@ -31,10 +40,22 @@
   --shadow-md: 0 2px 8px rgba(11,13,18,.07);
   --shadow-lg: 0 18px 48px rgba(11,13,18,.22);
 
-  --r-sm: 9px;
-  --r-md: 12px;
-  --r-lg: 18px;
-  --r-xl: 22px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 26px;
+
+  /* Each stat keeps its own hue on its icon only. The fills below are for the
+     icon glyph, which is a graphic and wants 3:1, not the 4.5:1 that the
+     numbers beside them need -- those stay body text. */
+  --cal-ink: #d4451c;
+  --carb-ink: #7d5200;
+  --protein-ink: #b32a2e;
+  --fat-ink: #1a56c4;
+  --cal-soft: #fdeee8;
+  --carb-soft: #fbf1dd;
+  --protein-soft: #fdecec;
+  --fat-soft: #e8effd;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,9 +63,10 @@
     --bg: #0a0c0f;
     --surface: #14171c;
     --surface-2: #1a1e24;
+    --tile: #1c2027;
     --text: #eceef2;
     --muted: #98a1ae;
-    --faint: #757e8b;
+    --faint: #868f9d;
     --border: #232830;
     --border-strong: #333a45;
 
@@ -58,6 +80,17 @@
     --carbs:   #f5b13f;
     --fat:     #6ba4ff;
     --track:   #262b33;
+
+    /* On a dark tile the fills already clear 6:1, so ink and fill are the same. */
+    --protein-ink: #ff6b6f;
+    --carbs-ink:   #f5b13f;
+    --fat-ink:     #6ba4ff;
+    --cal-ink:     #ff8a5c;
+    --carbs-soft:  #2a2213;
+    --cal-soft:    #2a1a13;
+    --carb-soft:   #2a2213;
+    --protein-soft:#2b1719;
+    --fat-soft:    #16203a;
 
     --warn-bg: #2c2412;
     --warn-text: #f3d18d;
@@ -109,11 +142,11 @@ button { cursor: pointer; }
 
 /* Brand and dates scroll away; only the controls you re-use stay pinned, which
    halves the chrome that used to sit above the food. */
-.appbar { padding: 14px 0 0; background: var(--bg); }
+.appbar { padding: 11px 0 0; background: var(--bg); }
 .appbar__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
-.brand h1 { margin: 0; font-size: 22px; font-weight: 760; letter-spacing: -.028em; }
-.brand__sub { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.brand h1 { margin: 0; font-size: 19px; font-weight: 760; letter-spacing: -.028em; }
+.brand__sub { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
 
 .appbar__actions { display: flex; gap: 8px; align-items: center; }
 .iconbtn {
@@ -134,20 +167,41 @@ button { cursor: pointer; }
 
 /* ---------- date strip ---------- */
 
-.datestrip {
-  display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none;
-  padding: 14px max(16px, calc((100% - 940px) / 2)) 2px;
+/* The sprite is a definitions-only SVG: it must occupy no space and never be
+   read out, but display:none in some engines also kills the <use> references. */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.weekbar { padding: 9px 0 10px; }
+
+/* A week at a time, paged. Twenty days in one scrolling run gave no sense of
+   which week you were looking at, and put this Tuesday and next Tuesday side by
+   side looking identical. */
+.weeknav { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.weeknav__arrow {
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--surface); color: var(--muted); transition: .12s;
 }
-.datestrip::-webkit-scrollbar { display: none; }
+.weeknav__arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor;
+                      stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.weeknav__arrow:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); }
+.weeknav__arrow:disabled { opacity: .32; cursor: default; }
+.weeknav__label { flex: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.weeknav__label b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
+.weeknav__label span { font-size: 11.5px; font-weight: 600; color: var(--faint); }
+
+/* Seven fixed columns, Monday first, so a weekday sits in the same place every
+   week and paging does not shuffle the row under your thumb. */
+.weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 
 .day {
-  flex: none; width: 52px; padding: 8px 0 9px; border-radius: 16px;
+  padding: 6px 0 7px; border-radius: 13px;
   border: 1px solid transparent; background: var(--surface);
   display: grid; gap: 1px; text-align: center; transition: .12s; position: relative;
 }
 .day span { display: block; font-size: 10px; text-transform: uppercase;
             letter-spacing: .07em; color: var(--faint); font-weight: 700; }
-.day strong { font-size: 17px; font-weight: 680; letter-spacing: -.02em; }
+.day strong { font-size: 15.5px; font-weight: 680; letter-spacing: -.02em; }
 .day[aria-selected="true"] { background: var(--ink); }
 .day[aria-selected="true"] span, .day[aria-selected="true"] strong { color: var(--on-ink); }
 .day[data-today="1"]::after {
@@ -155,11 +209,15 @@ button { cursor: pointer; }
   width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
 }
 .day[data-today="1"][aria-selected="true"]::after { background: var(--on-ink); }
+/* A day the college published nothing for keeps its column rather than being
+   dropped, so the week does not reflow and Wednesday stays under Wednesday. */
+.day:disabled { background: none; border-color: var(--border); opacity: .45; cursor: default; }
+.day:disabled strong { font-weight: 560; }
 
 /* ---------- sticky toolbar ---------- */
 
 .toolbar {
-  position: sticky; top: 0; z-index: 30; padding: 10px 0 11px;
+  position: sticky; top: 0; z-index: 30; padding: 8px 0 9px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(180%) blur(14px);
 }
@@ -237,38 +295,43 @@ button { cursor: pointer; }
 .hero { display: grid; gap: 10px; padding-top: 16px; }
 .hero:not(:empty) + main { padding-top: 26px; }
 
-.hero__card {
-  display: flex; align-items: center; gap: 18px;
-  padding: 18px 20px; border-radius: var(--r-xl); background: var(--surface);
-  box-shadow: var(--shadow);
-}
-.hero__ring { position: relative; flex: none; display: grid; place-items: center; }
-.hero__center { position: absolute; text-align: center; line-height: 1.05; }
-.hero__center b { display: block; font-size: 25px; font-weight: 760; letter-spacing: -.035em;
-                  font-variant-numeric: tabular-nums; }
-.hero__center span { font-size: 10px; font-weight: 700; color: var(--faint);
-                     text-transform: uppercase; letter-spacing: .1em; }
-.hero__text { min-width: 0; }
-.hero__text h2 { margin: 0 0 4px; font-size: 16px; font-weight: 700; letter-spacing: -.018em; }
-.hero__text p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 .linkbtn {
   border: 0; background: none; padding: 7px 0 0; font-size: 12.5px;
   font-weight: 620; color: var(--muted); text-decoration: underline;
 }
 .linkbtn:hover { color: var(--protein); }
 
-.hero__macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.htile {
-  display: flex; align-items: center; gap: 10px; min-width: 0;
-  padding: 12px 14px; border-radius: var(--r-lg); background: var(--surface);
-  box-shadow: var(--shadow);
-}
-.htile__text { min-width: 0; line-height: 1.15; }
-.htile__text b { display: block; font-size: 15px; font-weight: 700;
-                 font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.htile__text span { font-size: 10.5px; font-weight: 650; color: var(--faint);
-                    text-transform: uppercase; letter-spacing: .06em; }
 
+/* The plate summary, one line. It used to be a 118px ring, a headline, a
+   paragraph and three empty tiles -- most of a phone screen of nothing, ahead
+   of the food, on every load. */
+.plateline {
+  display: flex; align-items: center; gap: 13px; padding: 11px 14px;
+  border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border);
+}
+.plateline--empty { padding: 11px 14px; gap: 10px; }
+.plateline__ic { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--faint);
+                 stroke-width: 1.7; }
+.plateline--empty p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.plateline--empty p b { color: var(--text); font-weight: 700; }
+.plateline__ring { position: relative; flex: none; display: grid; place-items: center; }
+.plateline__center { position: absolute; inset: 0; display: grid; place-items: center; }
+.plateline__center b { font-size: 12px; font-weight: 740; letter-spacing: -.02em;
+                       font-variant-numeric: tabular-nums; }
+.plateline__text { min-width: 0; flex: 1; }
+.plateline__text h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.plateline__text p { margin: 1px 0 0; font-size: 11.5px; color: var(--faint); }
+.plateline__macros { display: flex; gap: 14px; flex: none; }
+.pmacro { text-align: right; line-height: 1.15; }
+.pmacro b { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pmacro span { display: block; font-size: 9.5px; color: var(--faint); font-weight: 600; }
+.pmacro--p b { color: var(--protein-ink); }
+.pmacro--c b { color: var(--carbs-ink); }
+.pmacro--f b { color: var(--fat-ink); }
+@media (max-width: 560px) {
+  .plateline__macros { gap: 10px; }
+  .plateline__text h2 { font-size: 14px; }
+}
 .ring { flex: none; transform: rotate(-90deg); overflow: visible; }
 .ring__bg, .ring__fg { fill: none; stroke-width: 11; }
 .ring__bg { stroke: var(--track); }
@@ -331,55 +394,75 @@ main { padding-top: 22px; }
 /* ---------- item card ---------- */
 
 .card {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px;
-  align-items: start;
-  padding: 15px 17px; border-radius: var(--r-xl);
-  background: var(--surface); border: 1px solid transparent; box-shadow: var(--shadow);
+  padding: 14px 14px 13px; border-radius: var(--r-xl);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   cursor: pointer; transition: transform .12s, box-shadow .12s;
 }
 .card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 
-.card__body { min-width: 0; }
-.card__name { margin: 0; font-size: 15px; font-weight: 640; line-height: 1.3;
-              letter-spacing: -.012em; }
+.card__top { display: flex; align-items: flex-start; gap: 12px; }
+.card__id { min-width: 0; flex: 1; }
+.card__name { margin: 0; font-size: 15.5px; font-weight: 680; line-height: 1.3;
+              letter-spacing: -.015em; }
 .card__sub {
   margin: 2px 0 0; font-size: 12px; color: var(--faint);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 
-.card__macros { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; }
-.m {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12.5px; font-weight: 640; font-variant-numeric: tabular-nums;
+/* Four tiles: icon, number, word. Auto-fit rather than a fixed four columns so
+   the row folds to 2x2 on a narrow phone instead of crushing "Calories" into
+   three characters. */
+/* Tiles cap out rather than stretching: at full width on a desktop card each
+   one became a 200px box around a 17px icon, which reads as a mistake. */
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 132px));
+  justify-content: start; gap: 7px; margin-top: 11px;
 }
-.m i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.m--p { color: var(--protein); } .m--p i { background: var(--protein); }
-.m--c { color: var(--carbs); }   .m--c i { background: var(--carbs); }
-.m--f { color: var(--fat); }     .m--f i { background: var(--fat); }
+.stat {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 9px 6px 8px; border-radius: var(--r-md); background: var(--tile);
+  text-align: center;
+}
+.stat__ic { width: 17px; height: 17px; fill: none; stroke-width: 1.8;
+            stroke-linecap: round; stroke-linejoin: round; margin-bottom: 3px; }
+.stat b { font-size: 15px; font-weight: 720; letter-spacing: -.02em;
+          font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: 10px; font-weight: 600; color: var(--faint); letter-spacing: .01em; }
+.stat--cal .stat__ic { stroke: var(--cal-ink); }
+.stat--carb .stat__ic { stroke: var(--carbs-ink); }
+.stat--protein .stat__ic { stroke: var(--protein-ink); }
+.stat--fat .stat__ic { stroke: var(--fat-ink); }
 
-.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-top: 7px; }
+.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
 .badge {
-  font-size: 10.5px; font-weight: 680; padding: 2.5px 8px; border-radius: 999px;
-  white-space: nowrap;
+  font-size: 11px; font-weight: 660; padding: 3px 9px; border-radius: 999px;
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
 }
 .badge--diet { background: var(--accent-soft); color: var(--accent); }
 .badge--warn { background: var(--warn-bg); color: var(--warn-text); }
-.card__note { font-size: 11.5px; color: var(--faint); min-width: 0;
-              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card__note--unknown { font-style: italic; }
+/* Outlined, not filled: allergens have to stay legible without competing with
+   the diet badges, which are the thing most people are scanning for. */
+.badge--allergen { border: 1px solid var(--border-strong); color: var(--muted); font-weight: 600; }
+.badge--unknown { border: 1px dashed var(--border-strong); color: var(--muted); font-weight: 600; }
 
-.card__end { display: flex; align-items: flex-start; gap: 10px; flex: none; }
-.card__cal { text-align: right; white-space: nowrap; line-height: 1.05; }
-.card__cal b { font-size: 20px; font-weight: 740; letter-spacing: -.03em;
-               font-variant-numeric: tabular-nums; }
-.card__cal span { display: block; margin-top: 1px; font-size: 9.5px; color: var(--faint);
-                  text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+/* Visible to screen readers only: the macro strip is abbreviated on screen, so
+   the spoken version carries the full words. */
+.sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 .add {
-  width: 34px; height: 34px; flex: none; border-radius: 12px; margin-top: -2px;
+  position: relative;
+  width: 34px; height: 34px; flex: none; border-radius: 11px; margin-top: 1px;
   border: 0; background: var(--surface-2); color: var(--muted);
   font-size: 19px; line-height: 1; display: grid; place-items: center; transition: .12s;
+  touch-action: manipulation;
 }
+/* The button reads as 36px but takes taps across the full 44px minimum, so it
+   does not need to grow and stretch every row in a 300-item list to do it. */
+.add::after { content: ""; position: absolute; inset: -4px; }
 .add:hover { background: var(--track); color: var(--text); }
 .add[data-in="1"] { background: var(--ink); color: var(--on-ink); }
 
@@ -399,19 +482,6 @@ main { padding-top: 22px; }
 }
 .resulthead strong { color: var(--text); font-weight: 680; }
 
-/* ---------- plate bar ---------- */
-
-.platebar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: saturate(180%) blur(14px);
-  border-top: 1px solid var(--border); padding: 10px 0;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-}
-.platebar__inner { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.platebar__sum { margin: 0; font-size: 13.5px; color: var(--muted); }
-.platebar__sum strong { font-size: 18px; font-weight: 740; color: var(--text);
-                        letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 
 /* ---------- sheets ---------- */
 
@@ -513,10 +583,7 @@ main { padding-top: 22px; }
 /* ---------- narrow ---------- */
 
 @media (max-width: 620px) {
-  .hero__card { gap: 14px; padding: 16px; }
-  .hero__macros { gap: 8px; }
-  .htile { padding: 10px; gap: 8px; flex-direction: column; align-items: flex-start; }
-  .card { gap: 12px; padding: 14px 15px; }
+  .card { padding: 13px 13px 12px; }
   .sheet { width: 100vw; max-width: none; max-height: 92vh; margin: auto 0 0;
            border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0; }
   .sheet__body { max-height: 92vh; padding-bottom: 28px; }
@@ -525,3 +592,137 @@ main { padding-top: 22px; }
   .filterbtn { padding: 8px 11px; gap: 5px; }
   .search input { padding-right: 30px; }
 }
+
+/* ---------- tab bar ---------- */
+
+/* Three destinations, pinned. Browse answers "what is there", Build answers
+   "what should I have", Plate answers "what did I pick" -- they are peers, and
+   a tab bar says that in a way a link buried in a header cannot. */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Phone-width even on a desktop: a tab stretched to 300px reads as a banner,
+   not a control, and the thumb never goes there anyway. */
+.tabbar__inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+                 max-width: 440px; margin: 0 auto; padding: 6px 16px 7px; }
+.tab {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 4px 6px; border: 0; background: none; border-radius: var(--r-md);
+  color: var(--faint); transition: color .12s, background .12s;
+}
+.tab svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.9;
+           stroke-linecap: round; stroke-linejoin: round; }
+.tab span { font-size: 11px; font-weight: 650; letter-spacing: -.005em; }
+.tab[aria-selected="true"] { color: var(--text); background: var(--surface); }
+.tab[aria-selected="true"] svg { stroke-width: 2.2; }
+.tab__count {
+  position: absolute; top: 2px; right: 50%; translate: 22px 0;
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
+  background: var(--ink); color: var(--on-ink);
+  font-size: 10.5px; font-weight: 750; line-height: 17px; text-align: center;
+}
+/* The bar is fixed, so every scrolling view has to end above it. */
+body { padding-bottom: 82px; }
+
+/* ---------- build ---------- */
+
+.view { padding-top: 4px; }
+
+.buildhead {
+  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 14px;
+}
+.buildhead__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.buildhead__row h2 { margin: 0; font-size: 18px; font-weight: 740; letter-spacing: -.025em; }
+.buildhead__row p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
+.buildhead__con { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.buildhead__go { width: 100%; margin-top: 14px; }
+
+.goalbtn {
+  display: inline-flex; align-items: center; gap: 7px; flex: none;
+  padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 650;
+}
+.goalbtn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; }
+.goalbtn:hover { background: var(--surface-2); }
+
+.targets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.target {
+  flex: 1 1 88px; padding: 9px 11px; border-radius: var(--r-md); background: var(--tile);
+  line-height: 1.15;
+}
+.target b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
+            font-variant-numeric: tabular-nums; }
+.target span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
+
+.plans { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.plan {
+  padding: 15px 15px 14px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.plan__head { display: flex; align-items: baseline; justify-content: space-between;
+              gap: 10px; min-width: 0; }
+.plan__head h3 { margin: 0; font-size: 15px; font-weight: 720; letter-spacing: -.02em; }
+.plan__cal { flex: none; font-size: 12px; font-weight: 620; color: var(--faint);
+             font-variant-numeric: tabular-nums; }
+.plan__items { list-style: none; margin: 11px 0 0; padding: 0;
+               display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+
+.planitem {
+  display: flex; align-items: center; gap: 12px; padding: 9px 10px; min-width: 0;
+  border-radius: var(--r-sm); background: var(--tile); cursor: pointer;
+}
+.planitem:hover { background: var(--surface-2); }
+.planitem__id { min-width: 0; flex: 1; }
+.planitem__id b { display: block; font-size: 13.5px; font-weight: 640; line-height: 1.3;
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planitem__id span { display: block; font-size: 11px; color: var(--faint);
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planitem__cal { flex: none; font-size: 13.5px; font-weight: 700;
+                 font-variant-numeric: tabular-nums; }
+
+.plan__bars { display: grid; gap: 9px; margin-top: 13px; }
+.plan__use { width: 100%; margin-top: 13px; }
+
+/* A bar rather than a ring: three or four of these stack, and a row of rings
+   makes you read four separate dials to answer one question. */
+.gbar__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+             margin-bottom: 4px; }
+.gbar__top span { font-size: 11.5px; font-weight: 620; color: var(--muted); }
+.gbar__top b { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gbar__top i { font-style: normal; font-weight: 600; color: var(--faint); }
+.gbar__track { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
+/* The colour says how you are doing, not which nutrient it is -- the label
+   already says that. A full red bar at exactly the target read as a failure
+   when it is the thing you asked for. */
+.gbar__fill { height: 100%; border-radius: 999px; background: var(--border-strong);
+              transition: width .25s; }
+.gbar[data-state="under"] .gbar__fill { background: var(--border-strong); }
+.gbar[data-state="near"] .gbar__fill { background: var(--carbs-ink); }
+.gbar[data-state="ok"] .gbar__fill { background: var(--accent); }
+.gbar[data-state="ok"] .gbar__top b { color: var(--accent); }
+/* Over a ceiling is a different kind of fact from under a floor, so it does not
+   get to look like ordinary progress. */
+.gbar[data-state="over"] .gbar__fill { background: repeating-linear-gradient(
+    45deg, var(--warn-text), var(--warn-text) 4px, transparent 4px, transparent 8px); }
+.gbar[data-state="over"] .gbar__top b { color: var(--warn-text); }
+
+/* ---------- plate view ---------- */
+
+.platehead {
+  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 12px;
+}
+.platehead__row { display: flex; align-items: flex-start; justify-content: space-between;
+                  gap: 12px; margin-bottom: 14px; }
+.platehead__row h2 { margin: 0; font-size: 24px; font-weight: 760; letter-spacing: -.03em;
+                     font-variant-numeric: tabular-nums; }
+.platehead__row p { margin: 2px 0 0; font-size: 12.5px; color: var(--faint); }
+.platehead__clear { width: 100%; margin-top: 14px; }
+.plateitems { list-style: none; margin: 0; padding: 0;
+              display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.plateitems .planitem { background: var(--surface); border: 1px solid var(--border); }
