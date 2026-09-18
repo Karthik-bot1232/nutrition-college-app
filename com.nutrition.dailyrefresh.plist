@@ -4,23 +4,22 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.nutrition.weeklyrefresh</string>
+    <string>com.nutrition.dailyrefresh</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/karthikvunnava/Nutrition College APP/weekly_refresh.sh</string>
+        <string>/Users/karthikvunnava/Nutrition College APP/daily_refresh.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
     <string>/Users/karthikvunnava/Nutrition College APP</string>
 
-    <!-- Monday 05:00. launchd runs a missed job when the Mac wakes, which cron
-         does not do -- at 5am the machine is usually asleep. Weekly because the
-         scraper only fetches what Supabase does not already hold, so the other
-         six runs would each find nothing to do. -->
+    <!-- 05:00 every morning. launchd runs a missed job once the Mac wakes,
+         which cron does not do -- at 5am the machine is usually asleep.
+         Daily is affordable because nothing already stored is re-fetched: a
+         day with nothing new published finishes in about nine seconds. -->
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Weekday</key><integer>1</integer>
         <key>Hour</key><integer>5</integer>
         <key>Minute</key><integer>0</integer>
     </dict>
