@@ -34,9 +34,10 @@ function ring(pct, cls, size, label) {
 const state = {
   meta: null, date: null, meal: null, location: null, weekStart: null, tab: 'browse',
   goals: { calories: '', protein: '', maxCarbs: '', maxFat: '' }, plans: null, planning: false,
+  plates: {}, openMeals: new Set(),
   q: '', scope: 'meal', minProtein: '', maxCalories: '', sort: 'name',
   without: new Set(), diets: new Set(), includeUnknown: false, hideImplausible: false,
-  items: new Map(), plate: [], collapsed: new Set(), menu: null,
+  items: new Map(), collapsed: new Set(), menu: null,
 };
 
 /* ------------------------------------------------------------- meal builder
@@ -356,7 +357,7 @@ function tags(item, max = 2) {
 
 function card(item, sub) {
   state.items.set(item.recipe_id, item);
-  const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
+  const inPlate = plateFor().some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
   return `<article class="card" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
       aria-label="${esc(item.name)}, details">
     <div class="card__top">
@@ -735,40 +736,97 @@ async function runBuild() {
 
 /* -------------------------------------------------------------- plate view */
 
-function renderPlateView() {
-  const t = totals(), goal = activeGoal(), n = state.plate.length;
-  if (!n) {
-    $('#plateView').innerHTML = emptyState('Your plate is empty',
-      'Add items from Browse with +, or let Build put a meal together for you.');
-    return;
-  }
-  const flagged = state.plate.filter(i => i.implausible).length;
-  $('#plateView').innerHTML = `
-    <div class="platehead">
-      <div class="platehead__row">
-        <div><h2>${Math.round(t.cal).toLocaleString()} cal</h2>
-          <p>${n} item${n === 1 ? '' : 's'} · ${esc(new Date(state.date + 'T12:00:00')
-            .toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }))}</p></div>
-        <button class="goalbtn" id="editGoals2">
-          <svg aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
-      </div>
+/** One meal as a collapsible row: the summary is always visible, the items
+    only when you open it.
+
+    A day used to render as one flat run of every item eaten, which answered
+    "how many calories" and nothing else -- you could not see that four of them
+    were breakfast. Meals are the unit people think in, so they are the unit on
+    screen, and an unopened meal costs one line instead of six. */
+function mealSection(meal) {
+  const rows = plateFor(meal);
+  const t = totals(meal);
+  const goal = activeGoal();
+  const open = state.openMeals.has(meal);
+  const flagged = rows.filter(i => i.implausible).length;
+
+  const summary = rows.length
+    ? `${Math.round(t.cal).toLocaleString()} cal · ${Math.round(t.p)}g protein`
+    : 'Nothing added';
+
+  return `<section class="meal ${rows.length ? '' : 'meal--empty'}">
+    <button class="meal__head" data-meal-toggle="${esc(meal)}" aria-expanded="${open}"
+            ${rows.length ? '' : 'disabled'}>
+      <span class="meal__name">${esc(meal)}</span>
+      <span class="meal__sum">${summary}</span>
+      ${rows.length ? `<span class="meal__count">${rows.length}</span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>` : ''}
+    </button>
+
+    ${open && rows.length ? `<div class="meal__body">
+      <ul class="plateitems">${rows.map(i => `
+        <li class="planitem">
+          <div class="planitem__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}</span></div>
+          <span class="planitem__cal">${Math.round(i.calories)}</span>
+          <button class="remove" data-remove="${esc(i.recipe_id)}" data-from="${esc(meal)}"
+                  aria-label="Remove ${esc(i.name)}">&times;</button>
+        </li>`).join('')}</ul>
+
       <div class="plan__bars">
         ${goalBar('Calories', t.cal, goal.calories, '', 'cal')}
         ${goalBar('Protein', t.p, goal.protein, 'g', 'protein')}
-        ${goalBar('Carbs', t.c, goal.maxCarbs, 'g', 'carb', true)}
-        ${goalBar('Fat', t.f, goal.maxFat, 'g', 'fat', true)}
+        ${goal.maxCarbs ? goalBar('Carbs', t.c, goal.maxCarbs, 'g', 'carb', true) : ''}
+        ${goal.maxFat ? goalBar('Fat', t.f, goal.maxFat, 'g', 'fat', true) : ''}
       </div>
+
       ${flagged ? `<div class="notice"><span>⚠</span><span>${flagged} item${
         flagged === 1 ? ' has a label that fails' : 's have labels that fail'} the plausibility
-        check, so this total is probably too high.</span></div>` : ''}
+        check, so this meal's total is probably too high.</span></div>` : ''}
+
+      <button class="ghostbtn meal__clear" data-clear-meal="${esc(meal)}">Clear ${esc(meal.toLowerCase())}</button>
+    </div>` : ''}
+  </section>`;
+}
+
+function renderPlateView() {
+  const day = totals();
+  const n = allPlated().length;
+  const dayLabel = new Date(state.date + 'T12:00:00').toLocaleDateString(undefined,
+    { weekday: 'long', month: 'short', day: 'numeric' });
+
+  if (!n) {
+    $('#plateView').innerHTML = `
+      <div class="platehead">
+        <div class="platehead__row">
+          <div><h2>Nothing logged</h2><p>${esc(dayLabel)}</p></div>
+          <button class="goalbtn" id="editGoals2">
+            <svg aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
+        </div>
+      </div>
+      ${emptyState('Your day is empty',
+        `Pick a meal under Browse and tap + on what you ate, or let Build put one
+         together. Each meal is tracked separately.`)}
+      <div class="meals">${state.meta.meals.map(mealSection).join('')}</div>`;
+    return;
+  }
+
+  // The day is the sum of its meals, so it is reported as a number rather than
+  // as a bar: the targets are per meal, and three of them is not a day's goal.
+  $('#plateView').innerHTML = `
+    <div class="platehead">
+      <div class="platehead__row">
+        <div><h2>${Math.round(day.cal).toLocaleString()} cal</h2>
+          <p>${n} item${n === 1 ? '' : 's'} across the day · ${esc(dayLabel)}</p></div>
+        <button class="goalbtn" id="editGoals2">
+          <svg aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
+      </div>
+      <div class="daymacros">
+        <div class="daymacro daymacro--p"><b>${Math.round(day.p)}g</b><span>Protein</span></div>
+        <div class="daymacro daymacro--c"><b>${Math.round(day.c)}g</b><span>Carbs</span></div>
+        <div class="daymacro daymacro--f"><b>${Math.round(day.f)}g</b><span>Fat</span></div>
+      </div>
     </div>
-    <ul class="plateitems">${state.plate.map(i => `
-      <li class="planitem">
-        <div class="planitem__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}</span></div>
-        <span class="planitem__cal">${Math.round(i.calories)}</span>
-        <button class="remove" data-remove="${esc(i.recipe_id)}" aria-label="Remove">&times;</button>
-      </li>`).join('')}</ul>
-    <button class="ghostbtn platehead__clear" id="plateClearAll">Clear plate</button>`;
+    <div class="meals">${state.meta.meals.map(mealSection).join('')}</div>`;
 }
 
 const render = () => (filtersActive() ? loadSearch() : loadMenu());
@@ -820,19 +878,49 @@ function scrollToSection(id) {
 
 const plateKey = () => `dining.plate.${state.date}`;
 
+/** A day's plates, one bucket per meal: { Breakfast: [...], Lunch: [...] }.
+
+    A single flat list per day could not answer "what did I have at lunch",
+    which is the question the tracker exists for, and it made a day of eating
+    render as one undifferentiated run of items. */
+const emptyDay = () => Object.fromEntries(state.meta.meals.map(m => [m, []]));
+
 function loadPlate() {
-  try { state.plate = JSON.parse(localStorage.getItem(plateKey()) || '[]'); }
-  catch { state.plate = []; }
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem(plateKey()) || 'null'); } catch {}
+
+  state.plates = emptyDay();
+  if (Array.isArray(stored)) {
+    // Days saved before plates were split by meal. They were built while
+    // looking at some meal's menu, and the one on screen now is the best guess
+    // available -- better than dropping someone's day on the floor.
+    state.plates[state.meal] = stored;
+  } else if (stored && typeof stored === 'object') {
+    state.meta.meals.forEach(m => {
+      if (Array.isArray(stored[m])) state.plates[m] = stored[m];
+    });
+  }
+  // Open the meal being browsed, so the tracker lands on the one you are
+  // most likely to be editing rather than three closed rows.
+  state.openMeals = new Set([state.meal]);
   renderPlate();
 }
 
 function savePlate() {
-  try { localStorage.setItem(plateKey(), JSON.stringify(state.plate)); } catch {}
+  try { localStorage.setItem(plateKey(), JSON.stringify(state.plates)); } catch {}
   renderPlate();
 }
 
-function totals() {
-  return state.plate.reduce((t, i) => ({
+/** The plate for one meal, or for the meal being browsed. */
+const plateFor = (meal = state.meal) => (state.plates[meal] ||= []);
+
+/** Every item across the day, in meal order. */
+const allPlated = () => state.meta.meals.flatMap(m => plateFor(m));
+
+/** Totals for one meal, or for the whole day when passed nothing. */
+function totals(meal) {
+  const rows = meal === undefined ? allPlated() : plateFor(meal);
+  return rows.reduce((t, i) => ({
     cal: t.cal + (i.calories || 0), p: t.p + (i.protein || 0),
     c: t.c + (i.carbs || 0), f: t.f + (i.fat || 0),
   }), { cal: 0, p: 0, c: 0, f: 0 });
@@ -843,7 +931,9 @@ function totals() {
 const CAL_REFERENCE = 2000;
 
 function renderHero() {
-  const t = totals(), n = state.plate.length;
+  // Scoped to the meal on screen: you are looking at breakfast, so this is
+  // what breakfast currently adds up to.
+  const t = totals(state.meal), n = plateFor().length;
 
   // An empty plate used to occupy a ring, a headline, a paragraph and three
   // empty macro tiles -- most of a phone screen of nothing, in front of the
@@ -874,7 +964,7 @@ function renderHero() {
 }
 
 function renderPlate() {
-  const n = state.plate.length;
+  const n = allPlated().length;
   [$('#plateCount'), $('#plateCount2')].forEach(el => {
     if (!el) return;
     el.hidden = !n;
@@ -884,19 +974,21 @@ function renderPlate() {
   if (state.tab === 'plate') renderPlateView();
 
   $$('#content [data-add]').forEach(btn => {
-    const on = state.plate.some(p => p.recipe_id === btn.dataset.add);
+    const on = plateFor().some(p => p.recipe_id === btn.dataset.add);
     btn.dataset.in = on ? '1' : '0';
     btn.textContent = on ? '✓' : '+';
     btn.setAttribute('aria-label', `${on ? 'Remove from' : 'Add to'} plate`);
   });
 }
 
-function togglePlate(recipeId) {
-  const at = state.plate.findIndex(p => p.recipe_id === recipeId);
-  if (at >= 0) { state.plate.splice(at, 1); savePlate(); return; }
+/** Add to, or remove from, the meal currently being browsed. */
+function togglePlate(recipeId, meal = state.meal) {
+  const plate = plateFor(meal);
+  const at = plate.findIndex(p => p.recipe_id === recipeId);
+  if (at >= 0) { plate.splice(at, 1); savePlate(); return; }
   const item = state.items.get(recipeId);
   if (!item) return;
-  state.plate.push({
+  plate.push({
     recipe_id: recipeId, name: item.name, serving: item.serving_size,
     calories: item.calories || 0, protein: item.nutrients.protein_g || 0,
     carbs: item.nutrients.total_carbs_g || 0, fat: item.nutrients.total_fat_g || 0,
@@ -905,31 +997,6 @@ function togglePlate(recipeId) {
   savePlate();
 }
 
-function openPlate() {
-  const t = totals();
-  const flagged = state.plate.filter(i => i.implausible).length;
-  showSheet(`
-    <div class="sheet__head">
-      <div><h2>Your plate</h2><p>${esc($('#dayLabel').textContent)}</p></div>
-      <button class="sheet__close" data-close>&times;</button>
-    </div>
-    <div class="bignums">
-      <div class="bignum"><b>${Math.round(t.cal).toLocaleString()}</b><span>calories</span></div>
-      <div class="bignum bignum--p"><b>${t.p.toFixed(0)}g</b><span>protein</span></div>
-      <div class="bignum bignum--c"><b>${t.c.toFixed(0)}g</b><span>carbs</span></div>
-      <div class="bignum bignum--f"><b>${t.f.toFixed(0)}g</b><span>fat</span></div>
-    </div>
-    ${flagged ? `<div class="notice"><span>⚠</span><span>${flagged} item${flagged === 1 ? '' : 's'}
-      on this plate ${flagged === 1 ? 'has a label that fails' : 'have labels that fail'} the
-      plausibility check, so these totals are probably too high.</span></div>` : ''}
-    <h3>${state.plate.length} item${state.plate.length === 1 ? '' : 's'}</h3>
-    ${state.plate.map(i => `<div class="plateitem">
-      <div class="plateitem__meta"><strong>${esc(i.name)}</strong>
-        <p>${esc(i.serving || '')} · ${Math.round(i.calories)} cal · ${i.protein.toFixed(1)}g protein</p>
-      </div>
-      <button class="remove" data-remove="${esc(i.recipe_id)}" aria-label="Remove">&times;</button>
-    </div>`).join('')}`);
-}
 
 /* ------------------------------------------------------------------- stats */
 
@@ -1014,7 +1081,7 @@ async function openDetail(recipeId) {
     ? `<div class="notice"><span>⚠</span><span>The macros on this label do not add up to its
        calorie count, so at least one of the two is wrong.</span></div>` : '';
 
-  const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id);
+  const inPlate = plateFor().some(p => p.recipe_id === item.recipe_id);
 
   showSheet(`
     <div class="sheet__head">
@@ -1075,8 +1142,9 @@ function bind() {
       if (!plan) return;
       // Replace rather than append: "put this on my plate" means this meal, not
       // this meal added to whatever was already there.
-      state.plate = [];
-      plan.items.forEach(i => togglePlate(i.recipe_id));
+      state.plates[state.meal] = [];
+      plan.items.forEach(i => togglePlate(i.recipe_id, state.meal));
+      state.openMeals.add(state.meal);   // land with the meal you just built open
       setTab('plate');
       return;
     }
@@ -1086,11 +1154,24 @@ function bind() {
 
   $('#plateView').addEventListener('click', e => {
     if (e.target.closest('#editGoals2')) return openGoals();
-    if (e.target.closest('#plateClearAll')) {
-      state.plate = []; savePlate(); renderPlateView(); return;
+
+    const head = e.target.closest('[data-meal-toggle]');
+    if (head) {
+      const meal = head.dataset.mealToggle;
+      state.openMeals.has(meal) ? state.openMeals.delete(meal) : state.openMeals.add(meal);
+      renderPlateView();
+      return;
     }
+
+    const clear = e.target.closest('[data-clear-meal]');
+    if (clear) {
+      state.plates[clear.dataset.clearMeal] = [];
+      savePlate(); renderPlateView();
+      return;
+    }
+
     const rm = e.target.closest('[data-remove]');
-    if (rm) { togglePlate(rm.dataset.remove); renderPlateView(); }
+    if (rm) { togglePlate(rm.dataset.remove, rm.dataset.from); renderPlateView(); }
   });
 
   const goalField = (sel, key) => $(sel).addEventListener('input', e => {
@@ -1212,7 +1293,7 @@ function bind() {
     if (e.target.closest('[data-close]') || e.target === $('#sheet')) { $('#sheet').close(); return; }
     const add = e.target.closest('[data-add]');
     if (add) {
-      const added = !state.plate.some(p => p.recipe_id === add.dataset.add);
+      const added = !plateFor().some(p => p.recipe_id === add.dataset.add);
       togglePlate(add.dataset.add);
       add.dataset.in = added ? '1' : '0';
       add.className = added ? 'ghostbtn' : 'primarybtn';
@@ -1220,12 +1301,12 @@ function bind() {
       return;
     }
     const rm = e.target.closest('[data-remove]');
-    if (rm) { togglePlate(rm.dataset.remove); state.plate.length ? openPlate() : $('#sheet').close(); }
+    if (rm) { togglePlate(rm.dataset.remove); $('#sheet').close(); }
   });
 
   $('#plateToggle').addEventListener('click', () => setTab('plate'));
   $('#hero').addEventListener('click', e => {
-    if (e.target.closest('#plateClear')) { state.plate = []; savePlate(); render(); }
+    if (e.target.closest('#plateClear')) { state.plates[state.meal] = []; savePlate(); render(); }
   });
 
   const bindField = (sel, key, prop = 'value') => $(sel).addEventListener('input', e => {
