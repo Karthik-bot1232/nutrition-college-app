@@ -32,11 +32,44 @@ function ring(pct, cls, size, label) {
 }
 
 const state = {
-  meta: null, date: null, meal: null, location: null,
+  meta: null, date: null, meal: null, location: null, weekStart: null,
   q: '', scope: 'meal', minProtein: '', maxCalories: '', sort: 'name',
   without: new Set(), diets: new Set(), includeUnknown: false, hideImplausible: false,
   items: new Map(), plate: [], collapsed: new Set(), menu: null,
 };
+
+/* ------------------------------------------------------------------- weeks
+
+   Dates are paged a Monday-to-Sunday week at a time rather than shown as one
+   long run of every stored day. A flat strip of twenty days gives no sense of
+   which week you are in and puts next Tuesday and last Tuesday side by side
+   looking identical.                                                        */
+
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parseDay = s => new Date(s + 'T12:00:00');
+
+/** The Monday on or before `dateStr`. Sunday closes a week here, not opens one. */
+function mondayOf(dateStr) {
+  const d = parseDay(dateStr);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return iso(d);
+}
+
+function addDays(dateStr, n) {
+  const d = parseDay(dateStr);
+  d.setDate(d.getDate() + n);
+  return iso(d);
+}
+
+/** Every Monday that has at least one stored day, oldest first. */
+function weeksAvailable() {
+  const seen = [];
+  state.meta.dates.forEach(d => {
+    const m = mondayOf(d);
+    if (!seen.includes(m)) seen.push(m);
+  });
+  return seen.sort();
+}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -111,32 +144,36 @@ function scopeText() {
 
 /* ------------------------------------------------------------------ pieces */
 
-/* One segmented strip: P / C / F, each letter carrying its own meaning.
-   This used to be three coloured dots and three numbers -- "16g 13g 10g" --
-   which asked the reader to know that red meant protein, and told a colourblind
-   reader nothing at all. Colour is now reinforcement on top of a label rather
-   than the only thing distinguishing the three. Keeping them in one bounded
-   strip is the other half of it: on a card with a name, a portion, badges and
-   an allergen line, three loose numbers read as more of the same pile. */
-const MACROS = [
-  ['p', 'P', 'Protein', 'protein_g'],
-  ['c', 'C', 'Carbs', 'total_carbs_g'],
-  ['f', 'F', 'Fat', 'total_fat_g'],
+/* Four stat tiles: an icon, the number, and the word spelled out.
+   Two earlier versions of this failed for the same underlying reason. Three
+   coloured dots against three numbers -- "16g 13g 10g" -- put the whole meaning
+   in the hue, so it read only if you had learned that red was protein, and for
+   a colourblind reader it did not read at all. Abbreviating to P / C / F fixed
+   the colour dependency but still asked the reader to expand a letter. The word
+   costs a little width and removes the last thing standing between looking at a
+   row and knowing what it says. */
+const STATS = [
+  ['cal', 'ic-cal', 'Calories', null],
+  ['carb', 'ic-carb', 'Carbs', 'total_carbs_g'],
+  ['protein', 'ic-protein', 'Protein', 'protein_g'],
+  ['fat', 'ic-fat', 'Fat', 'total_fat_g'],
 ];
 
-function macroChips(item) {
-  const n = item.nutrients;
-  if (MACROS.every(([, , , key]) => n[key] == null)) return '';
-  const cells = MACROS.map(([cls, abbr, label, key]) => {
-    const g = n[key];
-    const shown = g == null ? '–' : Math.round(g) + 'g';
-    const spoken = g == null ? `${label} not published` : `${label} ${Math.round(g)} grams`;
-    return `<span class="m m--${cls}">
-      <span class="m__k" aria-hidden="true">${abbr}</span
-      ><span class="m__v" aria-hidden="true">${shown}</span
-      ><span class="sr">${spoken}</span></span>`;
+function statTiles(item) {
+  const cells = STATS.map(([cls, icon, label, key]) => {
+    const raw = key === null ? item.calories : item.nutrients[key];
+    const shown = raw == null ? '–' : Math.round(raw) + (key === null ? '' : 'g');
+    const spoken = raw == null
+      ? `${label} not published`
+      : `${label} ${Math.round(raw)}${key === null ? '' : ' grams'}`;
+    return `<div class="stat stat--${cls}">
+      <svg class="stat__ic" aria-hidden="true"><use href="#${icon}"/></svg>
+      <b aria-hidden="true">${shown}</b>
+      <span aria-hidden="true">${label}</span>
+      <span class="sr">${spoken}</span>
+    </div>`;
   }).join('');
-  return `<div class="card__macros">${cells}</div>`;
+  return `<div class="stats">${cells}</div>`;
 }
 
 // Two allergens then a count, not three: the chip sits beside the diet badges
@@ -173,20 +210,17 @@ function card(item, sub) {
   const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
   return `<article class="card" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
       aria-label="${esc(item.name)}, details">
-    <div class="card__body">
-      <h3 class="card__name">${esc(item.name)}</h3>
-      <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
-      ${macroChips(item)}
-      ${tags(item)}
-    </div>
-    <div class="card__end">
-      <div class="card__cal">
-        <b>${item.calories == null ? '–' : Math.round(item.calories)}</b><span>cal</span>
+    <div class="card__top">
+      <div class="card__id">
+        <h3 class="card__name">${esc(item.name)}</h3>
+        <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
       </div>
       <button class="add" data-add="${esc(item.recipe_id)}" data-in="${inPlate}"
               aria-label="${inPlate === '1' ? 'Remove from' : 'Add to'} plate"
               >${inPlate === '1' ? '✓' : '+'}</button>
     </div>
+    ${statTiles(item)}
+    ${tags(item)}
   </article>`;
 }
 
@@ -194,20 +228,49 @@ function card(item, sub) {
 
 function renderDates() {
   const { dates, today } = state.meta;
-  $('#dateStrip').innerHTML = dates.map(d => {
-    const dt = new Date(d + 'T12:00:00');
+  const weeks = weeksAvailable();
+  if (!state.weekStart || !weeks.includes(state.weekStart)) state.weekStart = mondayOf(state.date);
+  const at = weeks.indexOf(state.weekStart);
+  const thisWeek = mondayOf(today);
+
+  const first = parseDay(state.weekStart);
+  const last = parseDay(addDays(state.weekStart, 6));
+  const sameMonth = first.getMonth() === last.getMonth();
+  const fmt = (d, withMonth) => d.toLocaleDateString(undefined,
+    withMonth ? { month: 'short', day: 'numeric' } : { day: 'numeric' });
+  const span = `${fmt(first, true)} – ${fmt(last, !sameMonth)}`;
+  const rel = state.weekStart === thisWeek ? 'This week'
+    : state.weekStart === addDays(thisWeek, 7) ? 'Next week'
+    : state.weekStart === addDays(thisWeek, -7) ? 'Last week'
+    : state.weekStart < thisWeek ? 'Past' : 'Upcoming';
+
+  $('#weekNav').innerHTML = `
+    <button class="weeknav__arrow" data-week="-1" ${at <= 0 ? 'disabled' : ''}
+            aria-label="Previous week">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="weeknav__label"><b>${esc(span)}</b><span>${rel}</span></div>
+    <button class="weeknav__arrow" data-week="1" ${at >= weeks.length - 1 ? 'disabled' : ''}
+            aria-label="Next week">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>`;
+
+  // Always seven columns, Monday first, so a given weekday sits in the same
+  // place every week. A day the college published nothing for is shown and
+  // disabled rather than dropped, because a gap that silently reflows the row
+  // is harder to read than one that stays put.
+  $('#dateStrip').innerHTML = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(state.weekStart, i);
+    const dt = parseDay(d);
+    const has = dates.includes(d);
     return `<button class="day" data-date="${d}" data-today="${d === today ? 1 : 0}"
-      aria-selected="${d === state.date}">
-      <span>${dt.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+      aria-selected="${d === state.date}" ${has ? '' : 'disabled title="No menu stored"'}>
+      <span>${dt.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
       <strong>${dt.getDate()}</strong></button>`;
   }).join('');
-  $(`.day[data-date="${state.date}"]`)?.scrollIntoView(
-    { inline: 'center', block: 'nearest', behavior: 'smooth' });
 
-  const dt = new Date(state.date + 'T12:00:00');
+  const dt = parseDay(state.date);
   $('#dayLabel').textContent = dt.toLocaleDateString(undefined,
     { weekday: 'long', month: 'long', day: 'numeric' }) +
-    (state.date === state.meta.today ? ' · today' : '');
+    (state.date === today ? ' · today' : '');
 }
 
 const count = (meal, loc) => state.meta.counts[`${state.date}|${meal}|${loc}`] || 0;
@@ -423,36 +486,37 @@ const CAL_REFERENCE = 2000;
 
 function renderHero() {
   const t = totals(), n = state.plate.length;
-  const kcal = t.p * 4 + t.c * 4 + t.f * 9;
-  const share = grams_kcal => (kcal ? grams_kcal / kcal : 0);
 
-  const tile = (cls, label, grams, pct) => `
-    <div class="htile">
-      ${ring(pct, cls, 42)}
-      <div class="htile__text"><b>${Math.round(grams)}g</b><span>${label}</span></div>
-    </div>`;
+  // An empty plate used to occupy a ring, a headline, a paragraph and three
+  // empty macro tiles -- most of a phone screen of nothing, in front of the
+  // food, every time the page loaded. Empty is now one line.
+  if (!n) {
+    $('#hero').innerHTML = `
+      <div class="plateline plateline--empty">
+        <svg class="plateline__ic" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
+        <p>Tap <b>+</b> on any item to build a plate. Totals stay per day.</p>
+      </div>`;
+    return;
+  }
+
+  const macro = (cls, label, grams) =>
+    `<div class="pmacro pmacro--${cls}"><b>${Math.round(grams)}g</b><span>${label}</span></div>`;
 
   $('#hero').innerHTML = `
-    <div class="hero__card">
-      <div class="hero__ring">
-        ${ring(t.cal / CAL_REFERENCE, 'cal', 118)}
-        <div class="hero__center">
-          <b>${Math.round(t.cal).toLocaleString()}</b><span>cal</span>
-        </div>
+    <div class="plateline">
+      <div class="plateline__ring">
+        ${ring(t.cal / CAL_REFERENCE, 'cal', 54)}
+        <div class="plateline__center"><b>${Math.round(t.cal).toLocaleString()}</b></div>
       </div>
-      <div class="hero__text">
-        <h2>${n ? 'Your plate' : 'Your plate is empty'}</h2>
-        <p>${n
-          ? `${n} item${n === 1 ? '' : 's'} · ${Math.round(t.cal / CAL_REFERENCE * 100)}% of the
-             2,000 cal label reference`
-          : 'Tap + on any item to add it. Totals land here, and stay per day.'}</p>
-        ${n ? `<button class="linkbtn" id="plateClear">Clear plate</button>` : ''}
+      <div class="plateline__text">
+        <h2>${Math.round(t.cal).toLocaleString()} cal</h2>
+        <p>${n} item${n === 1 ? '' : 's'} · ${Math.round(t.cal / CAL_REFERENCE * 100)}% of 2,000</p>
       </div>
-    </div>
-    <div class="hero__macros">
-      ${tile('p', 'Protein', t.p, share(t.p * 4))}
-      ${tile('c', 'Carbs', t.c, share(t.c * 4))}
-      ${tile('f', 'Fat', t.f, share(t.f * 9))}
+      <div class="plateline__macros">
+        ${macro('p', 'Protein', t.p)}${macro('c', 'Carbs', t.c)}${macro('f', 'Fat', t.f)}
+      </div>
+      <button class="linkbtn" id="plateClear">Clear</button>
     </div>`;
 }
 
@@ -643,9 +707,29 @@ async function openDetail(recipeId) {
 /* ------------------------------------------------------------------ wiring */
 
 function bind() {
+  $('#weekNav').addEventListener('click', e => {
+    const b = e.target.closest('[data-week]');
+    if (!b || b.disabled) return;
+    const weeks = weeksAvailable();
+    const next = weeks[weeks.indexOf(state.weekStart) + Number(b.dataset.week)];
+    if (!next) return;
+    state.weekStart = next;
+    // Land on the first stored day of the week you paged into, so the menu
+    // below always matches the week the header now claims to be showing.
+    const day = Array.from({ length: 7 }, (_, i) => addDays(next, i))
+      .find(d => state.meta.dates.includes(d));
+    if (day) {
+      state.date = day;
+      state.collapsed.clear();
+      renderDates(); renderMeals(); renderHalls(); loadPlate(); render();
+    } else {
+      renderDates();
+    }
+  });
+
   $('#dateStrip').addEventListener('click', e => {
     const b = e.target.closest('[data-date]');
-    if (!b) return;
+    if (!b || b.disabled) return;
     state.date = b.dataset.date;
     state.collapsed.clear();
     renderDates(); renderMeals(); renderHalls(); loadPlate(); render();
