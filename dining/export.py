@@ -23,13 +23,16 @@ from .colleges import get_adapter
 from .models import NUTRIENT_FIELDS
 
 SELECT = """
-SELECT e.service_date, e.meal, e.location_id, e.location_name, e.station,
-       e.portion, e.tags, e.item_external_id,
+SELECT e.service_date::text AS service_date, e.meal, e.location_id,
+       e.location_name, e.station, e.portion, e.tags, e.item_external_id,
        i.name, i.serving_size, i.ingredients, i.allergens, i.allergens_raw,
        i.diets, i.has_allergen_data, i.source_url, {nutrients}
 FROM menu_entries e
 LEFT JOIN items i ON i.college = e.college AND i.external_id = e.item_external_id
 WHERE e.college = ? AND e.service_date BETWEEN ? AND ?
+-- Postgres makes no order promise without this, and the CSV is one row
+-- per line: an unordered export reshuffles itself between identical runs.
+ORDER BY e.service_date, e.meal, e.location_name, e.station, i.name, e.portion
 """
 
 CSV_COLUMNS = [
@@ -42,7 +45,8 @@ CSV_COLUMNS = [
 
 
 def _json_list(value) -> list:
-    return json.loads(value) if value else []
+    """jsonb arrives decoded; this only guards the NULL side of a LEFT JOIN."""
+    return value or []
 
 
 def collect(conn, college: str, dates: list[date]):
@@ -218,7 +222,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--college", default="umd")
-    parser.add_argument("--db", default=str(db.DEFAULT_DB))
+    parser.add_argument("--dsn", help="Postgres connection string (default: $DATABASE_URL)")
     parser.add_argument("--days", type=int, default=7, help="length of the window")
     parser.add_argument("--start", help="first date, YYYY-MM-DD (default: today)")
     parser.add_argument("--format", choices=("json", "csv"), default="json")
@@ -229,7 +233,7 @@ def main():
     start = date.fromisoformat(args.start) if args.start else date.today()
     dates = [start + timedelta(days=n) for n in range(args.days)]
 
-    conn = db.connect(args.db)
+    conn = db.connect(args.dsn)
     rows = collect(conn, args.college, dates)
     conn.close()
 

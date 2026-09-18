@@ -5,8 +5,9 @@
 """
 
 import argparse
-import json
 from datetime import date
+
+from psycopg.types.json import Jsonb
 
 from . import db
 from .allergens import CANONICAL, normalize
@@ -30,8 +31,8 @@ def _print(rows, show_where: bool):
         if not row["has_allergen_data"]:
             allergens = "UNKNOWN - no allergen data published"
         else:
-            allergens = ", ".join(json.loads(row["allergens"])) or "none"
-        diets = ", ".join(json.loads(row["diets"]))
+            allergens = ", ".join(row["allergens"] or []) or "none"
+        diets = ", ".join(row["diets"] or [])
         where = f"  [{row['location_name']} · {row['meal']} · {row['station']}]" if show_where else ""
         print(f"\n{row['name']}{where}")
         print(f"  {row['serving_size'] or row['portion'] or '?'} · "
@@ -75,20 +76,21 @@ def cmd_find(conn, args):
         if canonical is None:
             raise SystemExit(f"Unknown allergen {term!r}. Known: {', '.join(CANONICAL)}")
 
-        # Allergen names are stored as a JSON array of canonical strings.
-        sql += " AND i.allergens NOT LIKE ?"
-        params.append(f'%"{canonical}"%')
+        # Allergens are a jsonb array of canonical names, and @> is containment,
+        # so this cannot be fooled by one name appearing inside another.
+        sql += " AND NOT (i.allergens @> ?)"
+        params.append(Jsonb([canonical]))
 
         if not args.include_unknown:
             # An item nobody published allergens for is not the same as a safe
             # item, so exclude it rather than implying it is free of anything.
-            sql += " AND i.has_allergen_data = 1"
+            sql += " AND i.has_allergen_data"
 
     if args.without and not args.include_unknown:
         hidden = conn.execute(
             "SELECT COUNT(DISTINCT i.external_id) AS n FROM menu_entries e "
             "JOIN items i ON i.college = e.college AND i.external_id = e.item_external_id "
-            "WHERE e.college = ? AND e.service_date = ? AND i.has_allergen_data = 0",
+            "WHERE e.college = ? AND e.service_date = ? AND NOT i.has_allergen_data",
             (args.college, day),
         ).fetchone()["n"]
 
@@ -105,13 +107,16 @@ def cmd_find(conn, args):
 
 def cmd_stats(conn, args):
     items = conn.execute(
-        "SELECT COUNT(*) n, SUM(calories IS NULL) missing_cal, SUM(ingredients IS NULL) missing_ing "
+        "SELECT COUNT(*) AS n, "
+        "       COUNT(*) FILTER (WHERE calories IS NULL) AS missing_cal, "
+        "       COUNT(*) FILTER (WHERE ingredients IS NULL) AS missing_ing "
         "FROM items WHERE college = ?", (args.college,)).fetchone()
     entries = conn.execute(
-        "SELECT COUNT(*) n, COUNT(DISTINCT service_date) days FROM menu_entries WHERE college = ?",
+        "SELECT COUNT(*) AS n, COUNT(DISTINCT service_date) AS days "
+        "FROM menu_entries WHERE college = ?",
         (args.college,)).fetchone()
     orphans = conn.execute(
-        "SELECT COUNT(*) n FROM menu_entries e LEFT JOIN items i "
+        "SELECT COUNT(*) AS n FROM menu_entries e LEFT JOIN items i "
         "ON i.college = e.college AND i.external_id = e.item_external_id "
         "WHERE e.college = ? AND i.external_id IS NULL", (args.college,)).fetchone()
 
@@ -123,7 +128,7 @@ def cmd_stats(conn, args):
 
     print("\nper hall / meal:")
     for row in conn.execute(
-        "SELECT location_name, meal, COUNT(*) n FROM menu_entries WHERE college = ? "
+        "SELECT location_name, meal, COUNT(*) AS n FROM menu_entries WHERE college = ? "
         "GROUP BY location_name, meal ORDER BY location_name, meal", (args.college,)):
         print(f"  {row['location_name']:28} {row['meal']:10} {row['n']:5}")
 
@@ -131,7 +136,7 @@ def cmd_stats(conn, args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--college", default="umd")
-    parser.add_argument("--db", default=str(db.DEFAULT_DB))
+    parser.add_argument("--dsn", help="Postgres connection string (default: $DATABASE_URL)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     menu = sub.add_parser("menu", help="everything served at one hall/meal")
@@ -156,7 +161,7 @@ def main():
     stats.set_defaults(func=cmd_stats)
 
     args = parser.parse_args()
-    conn = db.connect(args.db)
+    conn = db.connect(args.dsn)
     args.func(conn, args)
     conn.close()
 
