@@ -1,16 +1,35 @@
 # College Nutrition Scraper
 
-Pulls a week of dining-hall menus and full nutrition labels from a college's
-nutrition site and exports them in a stable format. Currently onboarded:
-**University of Maryland** (`umd`).
+Pulls dining-hall menus and full nutrition labels from a college's nutrition
+site into a **Supabase (Postgres)** database, and exports them in a stable
+format. Currently onboarded: **University of Maryland** (`umd`).
+
+The database is the source of truth, not a cache. Scraping only fills its gaps:
+a menu slot (date / hall / meal) already stored is never fetched again, and a
+recipe's label is fetched once and then read from the database forever after.
+A daily run therefore costs only the days the college has newly published,
+and most days that is nothing at all.
+
+## Setup
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env        # then paste your connection string into it
+```
+
+See [Setting up Supabase](#setting-up-supabase) for where that string comes
+from. Every command below reads `DATABASE_URL` from `.env`, or takes an
+explicit `--dsn`.
 
 ## Usage
 
 ```bash
-# 1. Pull the published week into the database (network; ~15 min for a full week)
-python3 -m dining.refresh --college umd --days 7
+# 1. Fill in whatever the database is missing (network; only the new days)
+python3 -m dining.refresh --college umd --days 14
+python3 -m dining.refresh --college umd --days 14 --force   # re-scrape anyway
 
-# 2. Export that week
+# 2. Export a window
 python3 -m dining.export --college umd --days 7 --format json -o week.json
 python3 -m dining.export --college umd --days 7 --format csv  -o week.csv
 
@@ -18,10 +37,77 @@ python3 -m dining.export --college umd --days 7 --format csv  -o week.csv
 python3 -m dining.query menu --hall 16 --meal Lunch
 python3 -m dining.query find --min-protein 25 --max-calories 500 --without gluten
 python3 -m dining.query stats
+
+# 3. Or browse it in a browser
+python3 -m dining.serve --open          # http://127.0.0.1:8000
 ```
 
-`refresh` writes, `export` only reads. `weekly_refresh.sh` runs both and drops
-the week's files in `exports/`.
+`refresh` writes, `export` and `serve` only read. `daily_refresh.sh` runs the
+first two and drops the window's files in `exports/`.
+
+## Setting up Supabase
+
+1. Create a project at [supabase.com](https://supabase.com) (the free tier is
+   far more than this needs -- a full year of UMD menus is a few hundred MB).
+   Save the database password it asks you to set; you need it in step 3.
+2. Dashboard -> **Project Settings** -> **Database** -> **Connection string** ->
+   **Transaction pooler**. That is the pooled port (6543), which is what
+   Supabase recommends for short-lived connections, and all this app makes are
+   short-lived connections.
+3. Copy it into `.env` as `DATABASE_URL`, replacing `[YOUR-PASSWORD]` with the
+   password from step 1.
+4. Create the tables and pull the first window:
+
+   ```bash
+   python3 -m dining.refresh --college umd --days 14
+   ```
+
+   The schema is created on first connect, so there is no separate migration
+   step and no SQL to paste into the dashboard.
+
+`.env` is gitignored, and the password in it is full write access to your data:
+it does not belong in a commit, a screenshot, or a pasted log.
+
+### Coming from the old local `nutrition.db`
+
+```bash
+python3 -m dining.migrate              # copies ./nutrition.db into Supabase
+python3 -m dining.migrate --dry-run    # convert everything, write nothing
+```
+
+It only reads the sqlite file, and every row is an upsert, so running it twice
+changes nothing and a re-run after a failure just finishes the job. Keep
+`nutrition.db` around until you are satisfied, then delete it -- nothing reads
+it any more.
+
+## Running it daily
+
+`daily_refresh.sh` tops up every registered college and writes the window's
+exports. `com.nutrition.dailyrefresh.plist` runs it at 05:00 via launchd, which
+(unlike cron) runs a job it missed once the Mac wakes up.
+
+```bash
+cp com.nutrition.dailyrefresh.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.nutrition.dailyrefresh.plist
+launchctl start com.nutrition.dailyrefresh     # run it once now
+```
+
+Most runs do nothing and finish in about nine seconds, because nothing already
+stored is re-fetched. Daily is worth it for the exceptions: a newly published
+day is picked up within 24 hours rather than up to a week, and a run that fails
+because the site is down is retried tomorrow. `--days 14` is the window each
+run *examines*, not what it fetches -- it settles into collecting roughly seven
+new days a week and staying about two weeks ahead.
+
+A slot that comes back empty is never recorded as stored, so weekend breakfasts
+and days the college has not published yet are retried on every run until they
+fill in. What no cadence fixes is a menu edited after publication: it keeps what
+it said when first scraped, unless you re-pull with `FORCE=1 ./daily_refresh.sh`.
+
+The script runs `./.venv/bin/python`, not `python3`. That is not a style
+preference: launchd runs with a bare `PATH`, `python3` there resolves to
+`/usr/bin/python3`, and that interpreter has none of this project's
+dependencies. Check `logs/launchd.err.log` if a scheduled run goes missing.
 
 ## Export format
 
@@ -52,6 +138,63 @@ A `null` means the label did not publish that nutrient.
 
 **CSV** is the flat counterpart: one row per appearance, 35 columns, every
 nutrient its own column. Use it for spreadsheets and quick analysis.
+
+## The web UI
+
+`dining.serve` puts the stored week behind a small read-only JSON API and a
+single-page front end.
+
+- **Browse** a date, meal and hall, grouped by station. `All halls` puts the
+  three halls side by side for one meal. Stations collapse, and a jump bar
+  indexes them -- lunch at South Campus runs to 23 stations and 300+ rows.
+- **Search and filter** on name, protein, calories, diet and allergens, scoped
+  to one meal, a whole day, or every stored day. A recipe served at three halls
+  collapses to one card listing where to find it.
+- **Item detail** shows the full label -- all 17 nutrients, ingredients, both
+  allergen sources side by side (the label page and the menu-row icons, which
+  disagree), every place it is served that week, when it was scraped, and a link
+  to the source page.
+- **About this data** (the ⓘ button) is `query stats` in the UI: coverage, what
+  the source never published, and how many labels fail each check.
+- **Plate**: add items for a running per-day calorie and macro total, kept in
+  the browser's localStorage. Nothing is written back to the database.
+
+Endpoints are `/api/meta`, `/api/menu`, `/api/search`, `/api/item` and
+`/api/stats`; every one is a GET returning JSON, so the front end is replaceable.
+
+No framework and no build step -- `http.server` plus `psycopg`, and the front
+end has no dependencies at all. It serves what `refresh` already stored, so a
+stale database shows a stale menu.
+
+The server takes a connection from a small pool for each request rather than
+holding one per thread. `ThreadingHTTPServer` starts a thread per request, so
+a connection per thread means a Postgres connection per browser request, and
+Supabase caps those well below what a few reloads would reach.
+
+```bash
+python3 -m dining.serve --port 8080 --college umd --open
+```
+
+## Two ways a published label can be wrong
+
+`nutrition_suspect` (above) catches labels that contradict themselves. It cannot
+catch the other failure, because those labels are internally consistent: every
+macro is scaled up together, a whole pan published as one portion. UMD serves a
+tilapia at 283g protein / 2051 kcal / 28,384mg sodium for "1 ea" -- the macros
+reconcile to the calories perfectly.
+
+`serve._label_implausible` is the UI-side check for those. The sharp test is
+calorie density, which needs a weighed portion: pure fat is ~255 kcal/oz, and
+the densest thing UMD publishes (olive oil) measures 250.6, so anything above
+260 kcal/oz cannot be food. For "1 each" portions there is no weight to divide
+by, so it falls back to absolute bounds -- over 1000 kcal, 80g protein or
+5000mg sodium. Together they flag 2.2% of UMD recipes.
+
+The absolute bounds do catch a few genuinely enormous composite sandwiches,
+which is the right way to be wrong here. Cards get a `check label` badge, the
+protein sort drops flagged items to the bottom, and published numbers are still
+shown unchanged -- these are the items that would otherwise own the top of every
+high-protein search.
 
 ## Reading the allergen fields
 

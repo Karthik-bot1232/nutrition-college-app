@@ -1,0 +1,780 @@
+/* Local UI for the dining scraper. No build step, no dependencies. */
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f4f5f7;
+  --tile: #f7f8fa;
+  --text: #0b0d12;
+  --muted: #646d7c;
+  --faint: #666f7e;
+  --border: #e7e9ee;
+  --border-strong: #d5d9e0;
+
+  /* Selected state is ink, not colour: with three macro colours already on
+     every card, a fourth accent hue makes the page read as noise. */
+  --ink: #0b0d12;
+  --on-ink: #ffffff;
+  --raised: #ffffff;
+  --accent: #15803d;
+  --accent-soft: #e7f6ec;
+
+  --protein: #e2464a;
+  --carbs:   #eb9b21;
+  --fat:     #3b7ff2;
+  --track:   #e9ebf0;
+
+  /* Text-safe variants of the three macro hues. The fills above are chosen to
+     read as fills -- rings, bars, dots -- and as 10px type on a near-white chip
+     the orange lands at 2.1:1. These are the same hues taken dark enough to
+     pass 4.5:1, and they are used only where a macro colour carries a letter. */
+  --protein-ink: #b32a2e;
+  --carbs-ink:   #7d5200;
+  --fat-ink:     #1a56c4;
+
+  --warn-bg: #fff6e0;
+  --warn-text: #8a5a00;
+  --warn-border: #f5dca0;
+
+  --shadow: 0 1px 2px rgba(11,13,18,.05);
+  --shadow-md: 0 2px 8px rgba(11,13,18,.07);
+  --shadow-lg: 0 18px 48px rgba(11,13,18,.22);
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 26px;
+
+  /* Each stat keeps its own hue on its icon only. The fills below are for the
+     icon glyph, which is a graphic and wants 3:1, not the 4.5:1 that the
+     numbers beside them need -- those stay body text. */
+  --cal-ink: #d4451c;
+  --carb-ink: #7d5200;
+  --protein-ink: #b32a2e;
+  --fat-ink: #1a56c4;
+  --cal-soft: #fdeee8;
+  --carb-soft: #fbf1dd;
+  --protein-soft: #fdecec;
+  --fat-soft: #e8effd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0c0f;
+    --surface: #14171c;
+    --surface-2: #1a1e24;
+    --tile: #1c2027;
+    --text: #eceef2;
+    --muted: #98a1ae;
+    --faint: #868f9d;
+    --border: #232830;
+    --border-strong: #333a45;
+
+    --ink: #ffffff;
+    --on-ink: #0b0d12;
+    --raised: #2b323c;
+    --accent: #4ade80;
+    --accent-soft: #14301f;
+
+    --protein: #ff6b6f;
+    --carbs:   #f5b13f;
+    --fat:     #6ba4ff;
+    --track:   #262b33;
+
+    /* On a dark tile the fills already clear 6:1, so ink and fill are the same. */
+    --protein-ink: #ff6b6f;
+    --carbs-ink:   #f5b13f;
+    --fat-ink:     #6ba4ff;
+    --cal-ink:     #ff8a5c;
+    --carbs-soft:  #2a2213;
+    --cal-soft:    #2a1a13;
+    --carb-soft:   #2a2213;
+    --protein-soft:#2b1719;
+    --fat-soft:    #16203a;
+
+    --warn-bg: #2c2412;
+    --warn-text: #f3d18d;
+    --warn-border: #4e411d;
+
+    --shadow: none;
+    --shadow-md: none;
+    --shadow-lg: 0 20px 52px rgba(0,0,0,.65);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Class rules like `display:grid` otherwise beat the UA rule for [hidden]. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 116px;
+}
+
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 16px; }
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- shared buttons ---------- */
+
+.ghostbtn {
+  border: 1px solid var(--border-strong); background: var(--surface);
+  border-radius: var(--r-md); padding: 9px 14px; font-size: 13.5px; font-weight: 560;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.ghostbtn:hover { border-color: var(--faint); }
+
+.primarybtn {
+  border: 1px solid var(--ink); background: var(--ink); color: var(--on-ink);
+  border-radius: var(--r-md); padding: 9px 16px; font-size: 13.5px; font-weight: 620;
+  white-space: nowrap;
+}
+.primarybtn:hover { opacity: .88; }
+
+/* ---------- app bar ---------- */
+
+/* Brand and dates scroll away; only the controls you re-use stay pinned, which
+   halves the chrome that used to sit above the food. */
+.appbar { padding: 10px 0 0; background: var(--bg); }
+.appbar__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.brand h1 { margin: 0; font-size: 19px; font-weight: 760; letter-spacing: -.028em; }
+.brand__sub { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+
+.appbar__actions { display: flex; gap: 8px; align-items: center; }
+.iconbtn {
+  position: relative; width: 38px; height: 38px; flex: none;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: var(--surface); display: grid; place-items: center;
+}
+.iconbtn svg { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 1.8;
+               stroke-linecap: round; stroke-linejoin: round; }
+.iconbtn:hover { border-color: var(--faint); }
+.iconbtn:hover svg { stroke: var(--text); }
+.iconbtn--plate svg { stroke: var(--text); }
+.iconbtn__count {
+  position: absolute; top: -4px; right: -4px; min-width: 19px; height: 19px;
+  border-radius: 10px; background: var(--ink); color: var(--on-ink);
+  font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0 5px;
+}
+
+/* ---------- date strip ---------- */
+
+/* The sprite is a definitions-only SVG: it must occupy no space and never be
+   read out, but display:none in some engines also kills the <use> references. */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.weekbar { padding: 8px 0 9px; }
+
+/* A week at a time, paged. Twenty days in one scrolling run gave no sense of
+   which week you were looking at, and put this Tuesday and next Tuesday side by
+   side looking identical. */
+.weeknav { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.weeknav__arrow {
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--surface); color: var(--muted); transition: .12s;
+}
+.weeknav__arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor;
+                      stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.weeknav__arrow:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); }
+.weeknav__arrow:disabled { opacity: .32; cursor: default; }
+.weeknav__label { flex: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.weeknav__label b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
+.weeknav__label span { font-size: 11.5px; font-weight: 600; color: var(--faint); }
+
+/* Seven fixed columns, Monday first, so a weekday sits in the same place every
+   week and paging does not shuffle the row under your thumb. */
+.weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+
+.day {
+  padding: 6px 0 7px; border-radius: 13px;
+  border: 1px solid transparent; background: var(--surface);
+  display: grid; gap: 1px; text-align: center; transition: .12s; position: relative;
+}
+.day span { display: block; font-size: 10px; text-transform: uppercase;
+            letter-spacing: .07em; color: var(--faint); font-weight: 700; }
+.day strong { font-size: 15.5px; font-weight: 680; letter-spacing: -.02em; }
+.day[aria-selected="true"] { background: var(--ink); }
+.day[aria-selected="true"] span, .day[aria-selected="true"] strong { color: var(--on-ink); }
+.day[data-today="1"]::after {
+  content: ""; position: absolute; left: 50%; bottom: 5px; translate: -50% 0;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+.day[data-today="1"][aria-selected="true"]::after { background: var(--on-ink); }
+/* A day the college published nothing for keeps its column rather than being
+   dropped, so the week does not reflow and Wednesday stays under Wednesday. */
+.day:disabled { background: none; border-color: var(--border); opacity: .45; cursor: default; }
+.day:disabled strong { font-weight: 560; }
+
+/* ---------- sticky toolbar ---------- */
+
+.toolbar {
+  position: sticky; top: 0; z-index: 30; padding: 7px 0 8px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+}
+
+.segmented { display: flex; gap: 3px; padding: 3px; background: var(--surface); border-radius: 14px; }
+.segmented button {
+  flex: 1; border: 0; background: none; border-radius: 11px;
+  padding: 8px 4px; font-size: 13.5px; font-weight: 580; color: var(--muted);
+}
+.segmented button[aria-selected="true"] {
+  background: var(--raised); color: var(--text); box-shadow: var(--shadow-md); font-weight: 660;
+}
+.segmented button[disabled] { opacity: .32; cursor: default; }
+
+.pills { display: flex; gap: 7px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
+.pills::-webkit-scrollbar { display: none; }
+.pill {
+  flex: none; padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 580;
+  border: 1px solid transparent; background: var(--surface); color: var(--muted);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.pill[aria-selected="true"] { background: var(--ink); color: var(--on-ink); font-weight: 650; }
+.pill small {
+  font-weight: 650; font-size: 10.5px; padding: 1px 6px; border-radius: 999px;
+  background: var(--surface-2); color: var(--faint);
+}
+.pill[aria-selected="true"] small {
+  background: color-mix(in srgb, var(--on-ink) 20%, transparent); color: var(--on-ink);
+}
+
+.searchrow { display: flex; gap: 8px; margin-top: 8px; }
+.search { position: relative; flex: 1; display: flex; align-items: center; }
+.search__icon {
+  position: absolute; left: 13px; width: 16px; height: 16px;
+  fill: none; stroke: var(--faint); stroke-width: 2; stroke-linecap: round; pointer-events: none;
+}
+.search input {
+  width: 100%; padding: 10px 32px 10px 36px; border-radius: 14px;
+  border: 1px solid transparent; background: var(--surface); font-size: 14px;
+}
+.search input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+.search input::-webkit-search-cancel-button { display: none; }
+.search__clear {
+  position: absolute; right: 8px; border: 0; background: none;
+  color: var(--faint); font-size: 20px; line-height: 1; padding: 0 6px;
+}
+
+.filterbtn {
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  border: 1px solid transparent; background: var(--surface);
+  border-radius: 14px; padding: 9px 15px; font-size: 13.5px; font-weight: 580;
+}
+.filterbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor;
+                 stroke-width: 2; stroke-linecap: round; }
+.filterbtn:hover { color: var(--text); }
+.filterbtn__count {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--ink); color: var(--on-ink); font-size: 11px; font-weight: 700;
+  display: grid; place-items: center;
+}
+
+.activefilters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.afchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 9px 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 580;
+  background: var(--surface); border: 0; color: var(--text);
+}
+.afchip::after { content: "×"; font-size: 14px; line-height: 1; color: var(--faint); }
+.afchip:hover::after { color: var(--protein); }
+.afclear { border: 0; background: none; color: var(--muted); font-size: 12px;
+           font-weight: 620; text-decoration: underline; padding: 5px 2px; }
+
+/* ---------- hero: the day's plate ---------- */
+
+.hero:not(:empty) { display: grid; gap: 10px; padding-top: 14px; }
+.hero:not(:empty) + main { padding-top: 26px; }
+
+.linkbtn {
+  border: 0; background: none; padding: 7px 0 0; font-size: 12.5px;
+  font-weight: 620; color: var(--muted); text-decoration: underline;
+}
+.linkbtn:hover { color: var(--protein); }
+
+
+/* The plate summary, one line. It used to be a 118px ring, a headline, a
+   paragraph and three empty tiles -- most of a phone screen of nothing, ahead
+   of the food, on every load. */
+.plateline {
+  display: flex; align-items: center; gap: 13px; padding: 11px 14px;
+  border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border);
+}
+.plateline--empty { padding: 11px 14px; gap: 10px; }
+.plateline__ic { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--faint);
+                 stroke-width: 1.7; }
+.plateline--empty p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.plateline--empty p b { color: var(--text); font-weight: 700; }
+.plateline__ring { position: relative; flex: none; display: grid; place-items: center; }
+.plateline__center { position: absolute; inset: 0; display: grid; place-items: center; }
+.plateline__center b { font-size: 12px; font-weight: 740; letter-spacing: -.02em;
+                       font-variant-numeric: tabular-nums; }
+.plateline__text { min-width: 0; flex: 1; }
+.plateline__text h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.plateline__text p { margin: 1px 0 0; font-size: 11.5px; color: var(--faint); }
+.plateline__macros { display: flex; gap: 14px; flex: none; }
+.pmacro { text-align: right; line-height: 1.15; }
+.pmacro b { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pmacro span { display: block; font-size: 9.5px; color: var(--faint); font-weight: 600; }
+.pmacro--p b { color: var(--protein-ink); }
+.pmacro--c b { color: var(--carbs-ink); }
+.pmacro--f b { color: var(--fat-ink); }
+@media (max-width: 560px) {
+  .plateline__macros { gap: 10px; }
+  .plateline__text h2 { font-size: 14px; }
+}
+.ring { flex: none; transform: rotate(-90deg); overflow: visible; }
+.ring__bg, .ring__fg { fill: none; stroke-width: 11; }
+.ring__bg { stroke: var(--track); }
+.ring__fg { stroke-linecap: round; transition: stroke-dashoffset .45s ease; }
+.ring--cal .ring__fg { stroke: var(--ink); }
+.ring--p .ring__fg { stroke: var(--protein); }
+.ring--c .ring__fg { stroke: var(--carbs); }
+.ring--f .ring__fg { stroke: var(--fat); }
+
+/* ---------- content ---------- */
+
+main { padding-top: 22px; }
+
+.jumpbar {
+  display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -16px 14px; padding: 0 16px 4px; align-items: center;
+}
+.jumpbar::-webkit-scrollbar { display: none; }
+.jumpbar__label {
+  flex: none; font-size: 10.5px; font-weight: 750; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--faint); padding-right: 2px;
+}
+.jump {
+  flex: none; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 580;
+  border: 0; background: var(--surface); color: var(--muted); white-space: nowrap;
+}
+.jump:hover { color: var(--text); }
+.jump small { opacity: .55; margin-left: 5px; }
+
+.hall { margin-bottom: 28px; scroll-margin-top: 130px; }
+.hall__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin: 0 4px 12px; padding-bottom: 9px; border-bottom: 1px solid var(--border);
+}
+.hall__head h2 { margin: 0; font-size: 17px; font-weight: 720; letter-spacing: -.022em; }
+.hall__head span { font-size: 12px; color: var(--faint); }
+
+.station { margin-bottom: 20px; scroll-margin-top: 130px; }
+.station__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; width: 100%; margin: 0 0 10px; padding: 4px 4px;
+  background: none; border: 0; border-radius: var(--r-sm); text-align: left;
+}
+.station__head h2 {
+  margin: 0; font-size: 12px; font-weight: 720; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted);
+}
+.station__head > span {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: var(--faint); font-weight: 620;
+}
+.chev {
+  width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2;
+  stroke-linecap: round; stroke-linejoin: round; transition: transform .15s;
+}
+.station__head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+
+.cards { display: grid; gap: 9px; }
+
+/* ---------- item card ---------- */
+
+.card {
+  padding: 14px 14px 13px; border-radius: var(--r-xl);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  cursor: pointer; transition: transform .12s, box-shadow .12s;
+}
+.card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+.card__top { display: flex; align-items: flex-start; gap: 12px; }
+.card__id { min-width: 0; flex: 1; }
+.card__name { margin: 0; font-size: 15.5px; font-weight: 680; line-height: 1.3;
+              letter-spacing: -.015em; }
+.card__sub {
+  margin: 2px 0 0; font-size: 12px; color: var(--faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+
+/* Four tiles: icon, number, word. Auto-fit rather than a fixed four columns so
+   the row folds to 2x2 on a narrow phone instead of crushing "Calories" into
+   three characters. */
+/* Tiles cap out rather than stretching: at full width on a desktop card each
+   one became a 200px box around a 17px icon, which reads as a mistake. */
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 132px));
+  justify-content: start; gap: 7px; margin-top: 11px;
+}
+.stat {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 9px 6px 8px; border-radius: var(--r-md); background: var(--tile);
+  text-align: center;
+}
+.stat__ic { width: 17px; height: 17px; fill: none; stroke-width: 1.8;
+            stroke-linecap: round; stroke-linejoin: round; margin-bottom: 3px; }
+.stat b { font-size: 15px; font-weight: 720; letter-spacing: -.02em;
+          font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: 10px; font-weight: 600; color: var(--faint); letter-spacing: .01em; }
+.stat--cal .stat__ic { stroke: var(--cal-ink); }
+.stat--carb .stat__ic { stroke: var(--carbs-ink); }
+.stat--protein .stat__ic { stroke: var(--protein-ink); }
+.stat--fat .stat__ic { stroke: var(--fat-ink); }
+
+.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.badge {
+  font-size: 11px; font-weight: 660; padding: 3px 9px; border-radius: 999px;
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+.badge--diet { background: var(--accent-soft); color: var(--accent); }
+.badge--warn { background: var(--warn-bg); color: var(--warn-text); }
+/* Outlined, not filled: allergens have to stay legible without competing with
+   the diet badges, which are the thing most people are scanning for. */
+.badge--allergen { border: 1px solid var(--border-strong); color: var(--muted); font-weight: 600; }
+.badge--unknown { border: 1px dashed var(--border-strong); color: var(--muted); font-weight: 600; }
+
+/* Visible to screen readers only: the macro strip is abbreviated on screen, so
+   the spoken version carries the full words. */
+.sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.add {
+  position: relative;
+  width: 34px; height: 34px; flex: none; border-radius: 11px; margin-top: 1px;
+  border: 0; background: var(--surface-2); color: var(--muted);
+  font-size: 19px; line-height: 1; display: grid; place-items: center; transition: .12s;
+  touch-action: manipulation;
+}
+/* The button reads as 36px but takes taps across the full 44px minimum, so it
+   does not need to grow and stretch every row in a 300-item list to do it. */
+.add::after { content: ""; position: absolute; inset: -4px; }
+.add:hover { background: var(--track); color: var(--text); }
+.add[data-in="1"] { background: var(--ink); color: var(--on-ink); }
+
+.empty { text-align: center; padding: 56px 20px; color: var(--muted); }
+.empty h2 { margin: 0 0 6px; font-size: 16px; color: var(--text); }
+.empty p { margin: 0 auto; max-width: 46ch; font-size: 13.5px; line-height: 1.5; }
+
+.notice {
+  display: flex; gap: 9px; padding: 11px 13px; margin-bottom: 16px;
+  border-radius: var(--r-md); background: var(--warn-bg); color: var(--warn-text);
+  border: 1px solid var(--warn-border); font-size: 12.5px; line-height: 1.45;
+}
+
+.resulthead {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 2px 12px; font-size: 12.5px; color: var(--muted);
+}
+.resulthead strong { color: var(--text); font-weight: 680; }
+
+
+/* ---------- sheets ---------- */
+
+.sheet {
+  width: min(560px, calc(100vw - 28px)); max-height: 86vh; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--r-xl);
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.sheet::backdrop { background: rgba(8,12,18,.45); backdrop-filter: blur(2px); }
+.sheet__body { overflow-y: auto; max-height: 86vh; padding: 20px; }
+.sheet__head { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+.sheet__head h2 { margin: 0 0 4px; font-size: 18px; font-weight: 680; line-height: 1.25;
+                  letter-spacing: -.015em; }
+.sheet__head p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.sheet__close {
+  border: 0; background: var(--surface-2); border-radius: var(--r-sm);
+  width: 30px; height: 30px; flex: none; font-size: 17px; color: var(--muted);
+}
+
+/* filter sheet */
+.fgroup { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.fgroup:first-of-type { border-top: 0; }
+.fgroup > h3 {
+  margin: 0 0 10px; font-size: 11px; font-weight: 750; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.field { display: grid; gap: 5px; }
+.field > span { font-size: 12px; font-weight: 620; color: var(--muted); }
+.field input, .field select {
+  padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--border-strong);
+  background: var(--surface-2); font-size: 13.5px; width: 100%;
+}
+.chipset__row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 560;
+  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--muted);
+}
+.chip[aria-pressed="true"] { background: var(--protein); border-color: var(--protein); color: #fff; }
+.chip--diet[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
+
+.check { display: flex; align-items: center; gap: 8px; margin-top: 11px; font-size: 13px; }
+.check input { width: 15px; height: 15px; accent-color: var(--ink); }
+.hint { margin: 7px 0 0; font-size: 11.5px; color: var(--faint); line-height: 1.45; }
+
+.sheet__foot {
+  position: sticky; bottom: -20px; margin: 20px -20px -20px; padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+
+/* detail sheet */
+.bignums { display: flex; gap: 8px; margin: 16px 0; }
+.bignum {
+  flex: 1; padding: 11px 12px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.bignum b { display: block; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
+            letter-spacing: -.02em; }
+.bignum span { font-size: 10.5px; color: var(--muted); text-transform: uppercase;
+               letter-spacing: .05em; font-weight: 650; }
+.bignum--p b { color: var(--protein); }
+.bignum--c b { color: var(--carbs); }
+.bignum--f b { color: var(--fat); }
+
+.sheet h3 {
+  margin: 20px 0 8px; font-size: 11px; font-weight: 750;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.nutrients { width: 100%; border-collapse: collapse; font-size: 13px; }
+.nutrients td { padding: 7px 0; border-bottom: 1px solid var(--border); }
+.nutrients td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 560; }
+.nutrients tr:last-child td { border-bottom: 0; }
+.nutrients .none { color: var(--faint); font-weight: 400; }
+
+.served { display: grid; gap: 5px; font-size: 12.5px; }
+.served div { display: flex; gap: 8px; color: var(--muted); }
+.served b { color: var(--text); font-weight: 620; min-width: 96px; }
+.ingredients { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin: 0; }
+.sheet a { color: var(--accent); font-size: 12.5px; }
+.sheet code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 5px; white-space: nowrap;
+}
+
+.plateitem {
+  display: flex; align-items: center; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--border); font-size: 13.5px;
+}
+.plateitem:last-of-type { border-bottom: 0; }
+.plateitem__meta { flex: 1; min-width: 0; }
+.plateitem__meta p { margin: 2px 0 0; font-size: 11.5px; color: var(--faint); }
+.plateitem strong { font-weight: 620; }
+.remove { border: 0; background: none; color: var(--faint); font-size: 18px; padding: 0 4px; }
+.remove:hover { color: var(--protein); }
+
+/* ---------- narrow ---------- */
+
+@media (max-width: 620px) {
+  .card { padding: 13px 13px 12px; }
+  .sheet { width: 100vw; max-width: none; max-height: 92vh; margin: auto 0 0;
+           border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0; }
+  .sheet__body { max-height: 92vh; padding-bottom: 28px; }
+  .bignums { flex-wrap: wrap; }
+  .bignum { flex: 1 1 calc(50% - 4px); }
+  .filterbtn { padding: 8px 11px; gap: 5px; }
+  .search input { padding-right: 30px; }
+}
+
+/* ---------- tab bar ---------- */
+
+/* Three destinations, pinned. Browse answers "what is there", Build answers
+   "what should I have", Plate answers "what did I pick" -- they are peers, and
+   a tab bar says that in a way a link buried in a header cannot. */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Phone-width even on a desktop: a tab stretched to 300px reads as a banner,
+   not a control, and the thumb never goes there anyway. */
+.tabbar__inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+                 max-width: 440px; margin: 0 auto; padding: 6px 16px 7px; }
+.tab {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 4px 6px; border: 0; background: none; border-radius: var(--r-md);
+  color: var(--faint); transition: color .12s, background .12s;
+}
+.tab svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.9;
+           stroke-linecap: round; stroke-linejoin: round; }
+.tab span { font-size: 11px; font-weight: 650; letter-spacing: -.005em; }
+.tab[aria-selected="true"] { color: var(--text); background: var(--surface); }
+.tab[aria-selected="true"] svg { stroke-width: 2.2; }
+.tab__count {
+  position: absolute; top: 2px; right: 50%; translate: 22px 0;
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
+  background: var(--ink); color: var(--on-ink);
+  font-size: 10.5px; font-weight: 750; line-height: 17px; text-align: center;
+}
+/* The bar is fixed, so every scrolling view has to end above it. */
+body { padding-bottom: 82px; }
+
+/* ---------- build ---------- */
+
+.view { padding-top: 4px; }
+
+.buildhead {
+  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 14px;
+}
+.buildhead__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.buildhead__row h2 { margin: 0; font-size: 18px; font-weight: 740; letter-spacing: -.025em; }
+.buildhead__row p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
+.buildhead__con { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.buildhead__go { width: 100%; margin-top: 14px; }
+
+.goalbtn {
+  display: inline-flex; align-items: center; gap: 7px; flex: none;
+  padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 650;
+}
+.goalbtn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; }
+.goalbtn:hover { background: var(--surface-2); }
+
+.targets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.target {
+  flex: 1 1 88px; padding: 9px 11px; border-radius: var(--r-md); background: var(--tile);
+  line-height: 1.15;
+}
+.target b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
+            font-variant-numeric: tabular-nums; }
+.target span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
+
+.plans { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.plan {
+  padding: 15px 15px 14px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.plan__head { display: flex; align-items: baseline; justify-content: space-between;
+              gap: 10px; min-width: 0; }
+.plan__head h3 { margin: 0; font-size: 15px; font-weight: 720; letter-spacing: -.02em; }
+.plan__cal { flex: none; font-size: 12px; font-weight: 620; color: var(--faint);
+             font-variant-numeric: tabular-nums; }
+.plan__items { list-style: none; margin: 11px 0 0; padding: 0;
+               display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+
+.planitem {
+  display: flex; align-items: center; gap: 12px; padding: 9px 10px; min-width: 0;
+  border-radius: var(--r-sm); background: var(--tile); cursor: pointer;
+}
+.planitem:hover { background: var(--surface-2); }
+.planitem__id { min-width: 0; flex: 1; }
+.planitem__id b { display: block; font-size: 13.5px; font-weight: 640; line-height: 1.3;
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planitem__id span { display: block; font-size: 11px; color: var(--faint);
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planitem__cal { flex: none; font-size: 13.5px; font-weight: 700;
+                 font-variant-numeric: tabular-nums; }
+
+.plan__bars { display: grid; gap: 9px; margin-top: 13px; }
+.plan__use { width: 100%; margin-top: 13px; }
+
+/* A bar rather than a ring: three or four of these stack, and a row of rings
+   makes you read four separate dials to answer one question. */
+.gbar__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+             margin-bottom: 4px; }
+.gbar__top span { font-size: 11.5px; font-weight: 620; color: var(--muted); }
+.gbar__top b { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gbar__top i { font-style: normal; font-weight: 600; color: var(--faint); }
+.gbar__track { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
+/* The colour says how you are doing, not which nutrient it is -- the label
+   already says that. A full red bar at exactly the target read as a failure
+   when it is the thing you asked for. */
+.gbar__fill { height: 100%; border-radius: 999px; background: var(--border-strong);
+              transition: width .25s; }
+/* Three states, not four. The bar's length already says how close you are, so
+   a separate "nearly there" colour only added a muddy olive between grey and
+   green that meant nothing on its own. */
+.gbar[data-state="under"] .gbar__fill,
+.gbar[data-state="near"] .gbar__fill { background: var(--border-strong); }
+.gbar[data-state="ok"] .gbar__fill { background: var(--accent); }
+.gbar[data-state="ok"] .gbar__top b { color: var(--accent); }
+/* Over a ceiling is a different kind of fact from under a floor, so it does not
+   get to look like ordinary progress. */
+.gbar[data-state="over"] .gbar__fill { background: repeating-linear-gradient(
+    45deg, var(--warn-text), var(--warn-text) 4px, transparent 4px, transparent 8px); }
+.gbar[data-state="over"] .gbar__top b { color: var(--warn-text); }
+
+/* ---------- plate view ---------- */
+
+.platehead {
+  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 12px;
+}
+.platehead__row { display: flex; align-items: flex-start; justify-content: space-between;
+                  gap: 12px; margin-bottom: 14px; }
+.platehead__row h2 { margin: 0; font-size: 24px; font-weight: 760; letter-spacing: -.03em;
+                     font-variant-numeric: tabular-nums; }
+.platehead__row p { margin: 2px 0 0; font-size: 12.5px; color: var(--faint); }
+.platehead__clear { width: 100%; margin-top: 14px; }
+.plateitems { list-style: none; margin: 0; padding: 0;
+              display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.plateitems .planitem { background: var(--surface); border: 1px solid var(--border); }
+
+/* ---------- plate: a day, by meal ---------- */
+
+.daymacros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 13px; }
+.daymacro { padding: 9px 11px; border-radius: var(--r-md); background: var(--tile); line-height: 1.15; }
+.daymacro b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
+              font-variant-numeric: tabular-nums; }
+.daymacro span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
+.daymacro--p b { color: var(--protein-ink); }
+.daymacro--c b { color: var(--carbs-ink); }
+.daymacro--f b { color: var(--fat-ink); }
+
+.meals { display: grid; gap: 9px; }
+
+.meal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden;
+}
+/* A meal you have not eaten yet still holds its place, so the day reads as
+   three slots with gaps rather than a list that silently omits them. */
+.meal--empty { background: none; box-shadow: none; border-style: dashed; }
+
+.meal__head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 13px 14px; border: 0; background: none; text-align: left;
+  min-height: 52px;
+}
+.meal__head:disabled { cursor: default; }
+.meal__name { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; flex: none; }
+.meal__sum { flex: 1; min-width: 0; font-size: 12.5px; color: var(--faint);
+             font-variant-numeric: tabular-nums; text-align: right;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meal--empty .meal__sum { font-style: italic; }
+.meal__count {
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--tile); color: var(--muted);
+  font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
+}
+.meal__head .chev {
+  flex: none; width: 15px; height: 15px; fill: none; stroke: var(--faint);
+  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  transition: transform .15s;
+}
+.meal__head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+
+.meal__body { padding: 0 14px 13px; border-top: 1px solid var(--border); }
+.meal__body .plateitems { margin-top: 12px; }
+.meal__body .plan__bars { margin-top: 13px; }
+.meal__clear { width: 100%; margin-top: 12px; }

@@ -1,0 +1,444 @@
+/* Design tokens. Light is primary; dark is defined alongside it rather than
+   inferred, so both are checked for contrast rather than one being a guess. */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --text: #0b0d12;
+  --muted: #5d6675;
+  --faint: #666f7e;
+  --border: #e6e8ee;
+  --border-strong: #d3d8e0;
+
+  --ink: #10131a;
+  --on-ink: #ffffff;
+
+  /* Macro identity. Text-safe tones; the -soft pair is only ever a background.
+
+     Protein is violet rather than red on purpose. Red is spoken for: an
+     allergen you have excluded has to be the loudest thing on the screen, and
+     it cannot be if the protein figure on every card is already wearing that
+     colour. Calories are near-neutral for the same reason -- they are the
+     headline number and do not need a hue to compete with carbs. */
+  --cal: #334155;
+  --protein: #6d28d9;
+  --carbs: #7d5200;
+  --fat: #1a56c4;
+  --cal-soft: #eef1f5;
+  --protein-soft: #f1ebfd;
+  --carbs-soft: #fbf1dd;
+  --fat-soft: #e8effd;
+
+  --accent: #117036;
+  --accent-soft: #e7f6ec;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --danger-border: #f3c4c0;
+  --warn: #7d5200;
+  --warn-soft: #fbf1dd;
+
+  --track: #e9ebf0;
+  --shadow: 0 1px 2px rgba(11, 13, 18, .05);
+  --shadow-md: 0 4px 14px rgba(11, 13, 18, .08);
+  --shadow-lg: 0 -8px 32px rgba(11, 13, 18, .14);
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+
+  --tap: 44px;          /* minimum touch target */
+  --nav-h: 62px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0d11;
+    --surface: #15181e;
+    --surface-2: #1b1f26;
+    --text: #edeff3;
+    --muted: #a3acba;
+    --faint: #8b95a3;
+    --border: #242932;
+    --border-strong: #353c47;
+
+    --ink: #ffffff;
+    --on-ink: #0b0d11;
+
+    --cal: #cbd5e1;
+    --protein: #a78bfa;
+    --carbs: #f5b13f;
+    --fat: #6ba4ff;
+    --cal-soft: #20242c;
+    --protein-soft: #211a35;
+    --carbs-soft: #2a2213;
+    --fat-soft: #16203a;
+
+    --accent: #4ade80;
+    --accent-soft: #14301f;
+    --danger: #ff8a84;
+    --danger-soft: #2d1614;
+    --danger-border: #58241f;
+    --warn: #f5b13f;
+    --warn-soft: #2a2213;
+
+    --track: #262b33;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, .4);
+    --shadow-lg: 0 -8px 32px rgba(0, 0, 0, .5);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+input { -webkit-appearance: none; appearance: none; }
+
+/* Every interactive element gets a visible focus ring; removing them is the
+   single most common accessibility regression in a redesign. */
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+.sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.app { min-height: 100%; display: flex; flex-direction: column; }
+
+.screen {
+  flex: 1;
+  /* Room for the fixed nav plus the home indicator, so the last card is never
+     trapped underneath it. */
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);
+}
+
+.wrap { width: 100%; max-width: 560px; margin: 0 auto; padding: 0 16px; }
+
+/* ------------------------------------------------------------------- head */
+
+.head { padding: 12px 0 10px; background: var(--bg); }
+.head__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.head__eyebrow {
+  margin: 0 0 2px; font-size: 11px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--faint);
+}
+
+/* A native <select> under a styled face: the OS picker is the fastest way to
+   change halls on a phone, and nothing custom beats it for one-handed use. */
+.hallpick { position: relative; display: inline-block; }
+.hallpick select {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; background: none; cursor: pointer;
+}
+.hallpick__value {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 20px; font-weight: 750; letter-spacing: -.028em;
+}
+.hallpick__value .icon { color: var(--muted); margin-top: 2px; }
+
+.segmented {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px;
+  margin-top: 12px; padding: 3px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.segmented button {
+  min-height: 38px; padding: 8px 6px; border-radius: 11px;
+  font-size: 14px; font-weight: 600; color: var(--muted);
+}
+.segmented button[aria-selected="true"] {
+  background: var(--surface); color: var(--text); font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+.searchrow { display: flex; gap: 8px; margin-top: 10px; }
+.search { position: relative; flex: 1; display: flex; align-items: center; }
+.search__icon { position: absolute; left: 12px; color: var(--faint); pointer-events: none; }
+.search input {
+  width: 100%; min-height: var(--tap); padding: 0 36px 0 36px;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); font-size: 15px;
+}
+.search input::placeholder { color: var(--faint); }
+.search input::-webkit-search-cancel-button { display: none; }
+.search__clear {
+  position: absolute; right: 6px; width: 32px; height: 32px;
+  display: grid; place-items: center; color: var(--faint); border-radius: 8px;
+}
+.search__clear:hover { color: var(--text); background: var(--surface-2); }
+
+.iconbtn {
+  position: relative; width: var(--tap); height: var(--tap); flex: none;
+  display: grid; place-items: center; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.iconbtn:hover { background: var(--surface-2); }
+.iconbtn__badge {
+  position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px;
+  padding: 0 5px; border-radius: 10px; background: var(--ink); color: var(--on-ink);
+  font-size: 11px; font-weight: 750; line-height: 19px; text-align: center;
+}
+
+.chiprow {
+  display: flex; gap: 7px; margin-top: 10px; overflow-x: auto;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.chiprow::-webkit-scrollbar { display: none; }
+.chiprow--active { margin-top: 8px; }
+
+.chip {
+  flex: none; min-height: 34px; padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap;
+}
+.chip:hover { border-color: var(--border-strong); color: var(--text); }
+.chip[aria-pressed="true"] {
+  background: var(--ink); border-color: var(--ink); color: var(--on-ink);
+}
+.chip--danger[aria-pressed="true"] {
+  background: var(--danger); border-color: var(--danger); color: #fff;
+}
+.chip--diet[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: var(--on-ink);
+}
+
+.activechip {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 5px 9px 5px 11px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 12.5px; font-weight: 620; color: var(--text); white-space: nowrap;
+}
+.activechip .icon { color: var(--faint); }
+.activechip--danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.activechip--danger .icon { color: var(--danger); }
+.activechip--clear { background: none; color: var(--muted); text-decoration: underline; border-color: transparent; }
+
+/* ------------------------------------------------------------------ cards */
+
+.resultline { margin: 16px 0 10px; font-size: 12.5px; color: var(--faint); }
+.resultline strong { color: var(--text); font-weight: 700; }
+
+.station { margin-bottom: 22px; }
+.station__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin: 0 0 9px; font-size: 12px; font-weight: 750; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.station__head span {
+  font-size: 11.5px; font-weight: 650; letter-spacing: 0;
+  text-transform: none; color: var(--faint);
+}
+
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.card {
+  position: relative; display: flex; align-items: stretch;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow);
+  transition: box-shadow .12s, border-color .12s;
+}
+.card:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+
+/* The whole card body is the tap target for the label; only the + is carved
+   out of it, so the common action needs no aim. */
+.card__main {
+  flex: 1; min-width: 0; text-align: left;
+  padding: 13px 8px 12px 14px; border-radius: var(--r-lg) 0 0 var(--r-lg);
+}
+.card__head { min-width: 0; }
+.card__name {
+  margin: 0; font-size: 15px; font-weight: 660; line-height: 1.3; letter-spacing: -.012em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card__serving { margin: 2px 0 0; font-size: 12px; color: var(--faint); }
+
+.card__nums { display: flex; align-items: baseline; gap: 14px; margin-top: 9px; }
+.num { display: inline-flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
+.num b { font-size: 19px; font-weight: 750; letter-spacing: -.03em; }
+.num span { font-size: 11px; font-weight: 620; color: var(--faint); }
+.num--cal b { color: var(--text); }
+.num--protein b { color: var(--protein); }
+
+.card__tags { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 9px; }
+
+.tag {
+  font-size: 11px; font-weight: 650; padding: 3px 8px; border-radius: 999px;
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+.tag--diet { background: var(--accent-soft); color: var(--accent); }
+.tag--allergen { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.tag--unknown { border: 1px dashed var(--border-strong); color: var(--faint); }
+/* An excluded allergen is the one thing on this screen that must never be
+   mistaken for decoration. */
+.tag--danger { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-border); font-weight: 750; }
+
+.card__add {
+  flex: none; width: 52px; display: grid; place-items: center;
+  border-left: 1px solid var(--border); border-radius: 0 var(--r-lg) var(--r-lg) 0;
+  font-size: 20px; color: var(--muted); transition: .12s;
+}
+.card__add:hover { background: var(--surface-2); color: var(--text); }
+.card__add[data-in="1"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+
+/* ----------------------------------------------------------------- sheets */
+
+.sheet {
+  width: 100%; max-width: 560px; margin: auto auto 0; padding: 0;
+  border: 0; border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
+  max-height: 88vh; overflow: hidden;
+}
+.sheet::backdrop { background: rgba(6, 8, 12, .5); backdrop-filter: blur(2px); }
+.sheet__body { display: flex; flex-direction: column; max-height: 88vh; }
+.sheet__grip {
+  width: 38px; height: 4px; border-radius: 999px; background: var(--border-strong);
+  margin: 9px auto 2px; flex: none;
+}
+.sheet__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 10px 18px 12px; border-bottom: 1px solid var(--border); flex: none;
+}
+.sheet__titles { min-width: 0; }
+.sheet__titles h2 { margin: 0; font-size: 18px; font-weight: 730; letter-spacing: -.025em; line-height: 1.25; }
+.sheet__titles p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
+.sheet__close {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: 10px; background: var(--surface-2); color: var(--muted);
+}
+.sheet__close:hover { color: var(--text); }
+.sheet__content { padding: 16px 18px 4px; overflow-y: auto; }
+.sheet__foot {
+  padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border); flex: none; background: var(--surface);
+}
+.sheet__actions { display: flex; gap: 10px; }
+.sheet__actions .btn { flex: 1; }
+.sheet__h3 {
+  margin: 20px 0 9px; font-size: 11.5px; font-weight: 750; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.sheet__content > .sheet__h3:first-child { margin-top: 4px; }
+
+.bignums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.bignum {
+  padding: 11px 6px 9px; border-radius: var(--r-md); background: var(--surface-2);
+  text-align: center; line-height: 1.15;
+}
+.bignum b { display: block; font-size: 17px; font-weight: 750; letter-spacing: -.028em;
+            font-variant-numeric: tabular-nums; }
+.bignum span { font-size: 10.5px; font-weight: 620; color: var(--faint); }
+.bignum--cal b { color: var(--cal); }
+.bignum--protein b { color: var(--protein); }
+.bignum--carbs b { color: var(--carbs); }
+.bignum--fat b { color: var(--fat); }
+
+.nutrients { width: 100%; border-collapse: collapse; }
+.nutrients th, .nutrients td {
+  padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13.5px;
+}
+.nutrients th { text-align: left; font-weight: 600; color: var(--muted); }
+.nutrients td { text-align: right; font-weight: 680; font-variant-numeric: tabular-nums; }
+.nutrients .is-sub th { padding-left: 14px; font-weight: 500; color: var(--faint); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.muted { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.hint { margin: 9px 0 0; font-size: 12px; color: var(--faint); line-height: 1.5; }
+
+/* An excluded allergen on an item you are looking at gets a full banner, not a
+   badge: this is the one message in the app that failing to notice can hurt. */
+.alert {
+  display: flex; gap: 11px; padding: 12px 13px; border-radius: var(--r-md);
+  margin-bottom: 16px;
+}
+.alert--danger { background: var(--danger-soft); border: 1px solid var(--danger-border); }
+.alert__icon {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid;
+  place-items: center; background: var(--danger); color: #fff;
+  font-size: 14px; font-weight: 800;
+}
+.alert strong { display: block; font-size: 13.5px; font-weight: 720; color: var(--danger); }
+.alert p { margin: 2px 0 0; font-size: 12.5px; color: var(--danger); opacity: .9; }
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  min-height: var(--tap); padding: 12px 18px; border-radius: var(--r-md);
+  font-size: 15px; font-weight: 680; text-align: center;
+  transition: background .12s, opacity .12s;
+}
+.btn--block { width: 100%; display: block; }
+.btn--primary { background: var(--ink); color: var(--on-ink); }
+.btn--primary:hover { opacity: .88; }
+.btn--ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn--ghost:hover { background: var(--track); }
+.btn:disabled { opacity: .4; cursor: default; }
+
+/* ----------------------------------------------------------- empty states */
+
+.empty {
+  text-align: center; padding: 40px 24px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-xl);
+}
+.empty--tall { margin-top: 24vh; }
+.empty__icon {
+  width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--muted);
+}
+.empty h2 { margin: 0 0 6px; font-size: 17px; font-weight: 720; letter-spacing: -.02em; }
+.empty p { margin: 0 auto; max-width: 34ch; font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+.empty .btn { margin-top: 16px; display: inline-block; }
+
+/* -------------------------------------------------------------------- nav */
+
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav__inner {
+  max-width: 560px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 6px 10px 7px;
+}
+.nav__tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 2px; border-radius: var(--r-md); color: var(--faint);
+  min-height: var(--tap); transition: color .12s, background .12s;
+}
+.nav__iconwrap { position: relative; display: grid; place-items: center; }
+.nav__label { font-size: 11px; font-weight: 640; }
+.nav__tab[aria-current="page"] { color: var(--text); background: var(--surface); }
+.nav__tab[aria-current="page"] .icon { stroke-width: 2.2; }
+.nav__badge {
+  position: absolute; top: -4px; left: 13px;
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
+  background: var(--accent); color: var(--on-ink);
+  font-size: 10.5px; font-weight: 780; line-height: 17px; text-align: center;
+}
+
+@media (min-width: 620px) {
+  .empty--tall { margin-top: 18vh; }
+}
+
+/* A macro keeps its colour, but a zero is not a quantity worth colouring --
+   "0g" in full protein violet on every condiment reads as emphasis on nothing. */
+.num--protein[data-zero="1"] b { color: var(--faint); }

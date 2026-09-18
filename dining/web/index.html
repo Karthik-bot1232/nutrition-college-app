@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dining</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false"><defs>
+  <!-- Drawn simple on purpose: these render at 17px, where the detail in a
+       stock drumstick or wheat-sheaf icon collapses into a smudge. -->
+  <symbol id="ic-cal" viewBox="0 0 24 24">
+    <path d="M12 3.5c.5 3-1.4 4-2.6 5.6a5.6 5.6 0 0 0-1.2 3.5 3.9 3.9 0 0 0 7.8 0c0-1.3-.6-2.5-1.5-3.4 0 1.4-.6 2.1-1.4 2.4.5-2.8-.2-5.5-1.1-8.1Z"/>
+    <path d="M12 20.5a8 8 0 0 1-8-8c0-2.2.9-4.2 2.3-5.8"/>
+    <path d="M12 20.5a8 8 0 0 0 8-8c0-2.2-.9-4.2-2.3-5.8"/>
+  </symbol>
+  <symbol id="ic-carb" viewBox="0 0 24 24">
+    <path d="M12 21.5v-9"/>
+    <path d="M12 12.5c0-2.6 1.7-4.6 4.3-5.4-.1 2.8-1.7 4.7-4.3 5.4Z"/>
+    <path d="M12 12.5c0-2.6-1.7-4.6-4.3-5.4.1 2.8 1.7 4.7 4.3 5.4Z"/>
+    <path d="M12 7.6c0-2.6 1.7-4.6 4.3-5.4-.1 2.8-1.7 4.7-4.3 5.4Z"/>
+    <path d="M12 7.6c0-2.6-1.7-4.6-4.3-5.4.1 2.8 1.7 4.7 4.3 5.4Z"/>
+  </symbol>
+  <symbol id="ic-protein" viewBox="0 0 24 24">
+    <circle cx="15.1" cy="8.9" r="5.1"/>
+    <path d="M11.5 12.5 9.1 14.9"/>
+    <circle cx="7.4" cy="16.6" r="2.3"/>
+    <circle cx="9.2" cy="18.4" r="2.3"/>
+  </symbol>
+  <symbol id="ic-fat" viewBox="0 0 24 24">
+    <path d="M12 3.4c3.4 3.6 5.5 6.2 5.5 8.8a5.5 5.5 0 1 1-11 0c0-2.6 2.1-5.2 5.5-8.8Z"/>
+  </symbol>
+  <symbol id="ic-browse" viewBox="0 0 24 24">
+    <path d="M4 6h16M4 12h16M4 18h10"/>
+  </symbol>
+  <symbol id="ic-build" viewBox="0 0 24 24">
+    <path d="m12 3 1.9 4.4L18 9.3l-4.1 1.9L12 15.6l-1.9-4.4L6 9.3l4.1-1.9L12 3Z"/>
+    <path d="m18.5 15 .9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9.9-2Z"/>
+  </symbol>
+  <symbol id="ic-plate" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/>
+  </symbol>
+  <symbol id="ic-target" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1"/>
+  </symbol>
+</defs></svg>
+
+<header class="appbar">
+  <div class="appbar__brandrow">
+    <div class="wrap appbar__top">
+      <div class="brand">
+        <h1 id="collegeName">Dining</h1>
+        <p class="brand__sub" id="dayLabel">&nbsp;</p>
+      </div>
+      <div class="appbar__actions">
+        <button class="iconbtn" id="statsToggle" aria-label="About this data">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.9"/></svg>
+        </button>
+        <button class="iconbtn iconbtn--plate" id="plateToggle" aria-label="Your plate">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
+          <span class="iconbtn__count" id="plateCount" hidden>0</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="weekbar">
+    <div class="wrap">
+      <div class="weeknav" id="weekNav"></div>
+      <nav class="weekdays" id="dateStrip" aria-label="Day of the week"></nav>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+    <div class="wrap">
+      <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal"></div>
+      <div class="pills" id="hallPills" role="tablist" aria-label="Dining hall"></div>
+      <div class="searchrow">
+        <div class="search">
+          <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search" type="search" placeholder="Search items…" autocomplete="off" spellcheck="false">
+          <button class="search__clear" id="searchClear" hidden aria-label="Clear search">&times;</button>
+        </div>
+        <button class="filterbtn" id="filterToggle" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+          <span>Filters</span>
+          <span class="filterbtn__count" id="filterCount" hidden>0</span>
+        </button>
+      </div>
+      <div class="activefilters" id="activeFilters" hidden></div>
+    </div>
+</div>
+
+<section class="wrap hero" id="hero"></section>
+
+<main class="wrap" id="content"></main>
+<section class="wrap view" id="buildView" hidden></section>
+<section class="wrap view" id="plateView" hidden></section>
+
+<nav class="tabbar" aria-label="Sections">
+  <div class="wrap tabbar__inner">
+    <button class="tab" data-tab="browse" aria-selected="true">
+      <svg aria-hidden="true"><use href="#ic-browse"/></svg><span>Browse</span></button>
+    <button class="tab" data-tab="build" aria-selected="false">
+      <svg aria-hidden="true"><use href="#ic-build"/></svg><span>Build</span></button>
+    <button class="tab" data-tab="plate" aria-selected="false">
+      <svg aria-hidden="true"><use href="#ic-plate"/></svg><span>Plate</span>
+      <span class="tab__count" id="plateCount2" hidden>0</span></button>
+  </div>
+</nav>
+
+<dialog id="goalSheet" class="sheet sheet--filters">
+  <form method="dialog" class="sheet__body">
+    <div class="sheet__head">
+      <div><h2>Your targets</h2><p>What one meal should add up to. Used by Build and shown on your plate.</p></div>
+      <button class="sheet__close" value="close" aria-label="Close">&times;</button>
+    </div>
+    <section class="fgroup">
+      <h3>Per meal</h3>
+      <div class="fgrid">
+        <label class="field"><span>Calories</span>
+          <input type="number" id="gCalories" min="0" step="50" placeholder="700"></label>
+        <label class="field"><span>Protein at least (g)</span>
+          <input type="number" id="gProtein" min="0" step="5" placeholder="35"></label>
+        <label class="field"><span>Carbs at most (g)</span>
+          <input type="number" id="gCarbs" min="0" step="5" placeholder="any"></label>
+        <label class="field"><span>Fat at most (g)</span>
+          <input type="number" id="gFat" min="0" step="5" placeholder="any"></label>
+      </div>
+      <p class="hint">Only calories and protein steer the builder hard. Carbs and fat act as
+        ceilings it tries not to cross.</p>
+    </section>
+    <div class="sheet__foot">
+      <button type="button" class="ghostbtn" id="goalReset">Clear targets</button>
+      <button class="primarybtn" value="close">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="filterSheet" class="sheet sheet--filters">
+  <form method="dialog" class="sheet__body">
+    <div class="sheet__head">
+      <div><h2>Filters</h2><p>Narrow the menu down to what you will actually eat</p></div>
+      <button class="sheet__close" value="close" aria-label="Close">&times;</button>
+    </div>
+
+    <section class="fgroup">
+      <h3>Targets</h3>
+      <div class="fgrid">
+        <label class="field">
+          <span>Min protein (g)</span>
+          <input type="number" id="fMinProtein" min="0" step="1" placeholder="any">
+        </label>
+        <label class="field">
+          <span>Max calories</span>
+          <input type="number" id="fMaxCalories" min="0" step="10" placeholder="any">
+        </label>
+      </div>
+    </section>
+
+    <section class="fgroup">
+      <h3>Sort &amp; scope</h3>
+      <div class="fgrid">
+        <label class="field">
+          <span>Sort by</span>
+          <select id="fSort">
+            <option value="name">Name</option>
+            <option value="protein">Protein, high to low</option>
+            <option value="calories">Calories, low to high</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Look across</span>
+          <select id="fScope">
+            <option value="meal">This meal only</option>
+            <option value="day">This whole day</option>
+            <option value="all">Every stored day</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="fgroup">
+      <h3>Diet</h3>
+      <div id="dietChips" class="chipset__row"></div>
+    </section>
+
+    <section class="fgroup">
+      <h3>Exclude allergens</h3>
+      <div id="allergenChips" class="chipset__row"></div>
+      <label class="check"><input type="checkbox" id="fIncludeUnknown">
+        <span>Also show items with no allergen data published</span></label>
+      <p class="hint">Off by default: an item with nothing published is not a claim that
+        it is free of anything.</p>
+    </section>
+
+    <section class="fgroup">
+      <h3>Label quality</h3>
+      <label class="check"><input type="checkbox" id="fHideImplausible">
+        <span>Hide labels that fail a plausibility check</span></label>
+      <p class="hint">Some published labels describe a whole pan rather than one serving.</p>
+    </section>
+
+    <div class="sheet__foot">
+      <button type="button" class="ghostbtn" id="filterReset">Reset all</button>
+      <button class="primarybtn" value="close">Show results</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="sheet" class="sheet"></dialog>
+<script src="/app.js"></script>
+</body>
+</html>
