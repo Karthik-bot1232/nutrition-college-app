@@ -482,19 +482,6 @@ main { padding-top: 22px; }
 }
 .resulthead strong { color: var(--text); font-weight: 680; }
 
-/* ---------- plate bar ---------- */
-
-.platebar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: saturate(180%) blur(14px);
-  border-top: 1px solid var(--border); padding: 10px 0;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-}
-.platebar__inner { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.platebar__sum { margin: 0; font-size: 13.5px; color: var(--muted); }
-.platebar__sum strong { font-size: 18px; font-weight: 740; color: var(--text);
-                        letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 
 /* ---------- sheets ---------- */
 
@@ -605,3 +592,137 @@ main { padding-top: 22px; }
   .filterbtn { padding: 8px 11px; gap: 5px; }
   .search input { padding-right: 30px; }
 }
+
+/* ---------- tab bar ---------- */
+
+/* Three destinations, pinned. Browse answers "what is there", Build answers
+   "what should I have", Plate answers "what did I pick" -- they are peers, and
+   a tab bar says that in a way a link buried in a header cannot. */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Phone-width even on a desktop: a tab stretched to 300px reads as a banner,
+   not a control, and the thumb never goes there anyway. */
+.tabbar__inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+                 max-width: 440px; margin: 0 auto; padding: 6px 16px 7px; }
+.tab {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 4px 6px; border: 0; background: none; border-radius: var(--r-md);
+  color: var(--faint); transition: color .12s, background .12s;
+}
+.tab svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.9;
+           stroke-linecap: round; stroke-linejoin: round; }
+.tab span { font-size: 11px; font-weight: 650; letter-spacing: -.005em; }
+.tab[aria-selected="true"] { color: var(--text); background: var(--surface); }
+.tab[aria-selected="true"] svg { stroke-width: 2.2; }
+.tab__count {
+  position: absolute; top: 2px; right: 50%; translate: 22px 0;
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
+  background: var(--ink); color: var(--on-ink);
+  font-size: 10.5px; font-weight: 750; line-height: 17px; text-align: center;
+}
+/* The bar is fixed, so every scrolling view has to end above it. */
+body { padding-bottom: 82px; }
+
+/* ---------- build ---------- */
+
+.view { padding-top: 4px; }
+
+.buildhead {
+  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 14px;
+}
+.buildhead__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.buildhead__row h2 { margin: 0; font-size: 18px; font-weight: 740; letter-spacing: -.025em; }
+.buildhead__row p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
+.buildhead__con { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.buildhead__go { width: 100%; margin-top: 14px; }
+
+.goalbtn {
+  display: inline-flex; align-items: center; gap: 7px; flex: none;
+  padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 650;
+}
+.goalbtn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; }
+.goalbtn:hover { background: var(--surface-2); }
+
+.targets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.target {
+  flex: 1 1 88px; padding: 9px 11px; border-radius: var(--r-md); background: var(--tile);
+  line-height: 1.15;
+}
+.target b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
+            font-variant-numeric: tabular-nums; }
+.target span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
+
+.plans { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.plan {
+  padding: 15px 15px 14px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.plan__head { display: flex; align-items: baseline; justify-content: space-between;
+              gap: 10px; min-width: 0; }
+.plan__head h3 { margin: 0; font-size: 15px; font-weight: 720; letter-spacing: -.02em; }
+.plan__cal { flex: none; font-size: 12px; font-weight: 620; color: var(--faint);
+             font-variant-numeric: tabular-nums; }
+.plan__items { list-style: none; margin: 11px 0 0; padding: 0;
+               display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+
+.planitem {
+  display: flex; align-items: center; gap: 12px; padding: 9px 10px; min-width: 0;
+  border-radius: var(--r-sm); background: var(--tile); cursor: pointer;
+}
+.planitem:hover { background: var(--surface-2); }
+.planitem__id { min-width: 0; flex: 1; }
+.planitem__id b { display: block; font-size: 13.5px; font-weight: 640; line-height: 1.3;
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planitem__id span { display: block; font-size: 11px; color: var(--faint);
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planitem__cal { flex: none; font-size: 13.5px; font-weight: 700;
+                 font-variant-numeric: tabular-nums; }
+
+.plan__bars { display: grid; gap: 9px; margin-top: 13px; }
+.plan__use { width: 100%; margin-top: 13px; }
+
+/* A bar rather than a ring: three or four of these stack, and a row of rings
+   makes you read four separate dials to answer one question. */
+.gbar__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+             margin-bottom: 4px; }
+.gbar__top span { font-size: 11.5px; font-weight: 620; color: var(--muted); }
+.gbar__top b { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gbar__top i { font-style: normal; font-weight: 600; color: var(--faint); }
+.gbar__track { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
+/* The colour says how you are doing, not which nutrient it is -- the label
+   already says that. A full red bar at exactly the target read as a failure
+   when it is the thing you asked for. */
+.gbar__fill { height: 100%; border-radius: 999px; background: var(--border-strong);
+              transition: width .25s; }
+.gbar[data-state="under"] .gbar__fill { background: var(--border-strong); }
+.gbar[data-state="near"] .gbar__fill { background: var(--carbs-ink); }
+.gbar[data-state="ok"] .gbar__fill { background: var(--accent); }
+.gbar[data-state="ok"] .gbar__top b { color: var(--accent); }
+/* Over a ceiling is a different kind of fact from under a floor, so it does not
+   get to look like ordinary progress. */
+.gbar[data-state="over"] .gbar__fill { background: repeating-linear-gradient(
+    45deg, var(--warn-text), var(--warn-text) 4px, transparent 4px, transparent 8px); }
+.gbar[data-state="over"] .gbar__top b { color: var(--warn-text); }
+
+/* ---------- plate view ---------- */
+
+.platehead {
+  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 12px;
+}
+.platehead__row { display: flex; align-items: flex-start; justify-content: space-between;
+                  gap: 12px; margin-bottom: 14px; }
+.platehead__row h2 { margin: 0; font-size: 24px; font-weight: 760; letter-spacing: -.03em;
+                     font-variant-numeric: tabular-nums; }
+.platehead__row p { margin: 2px 0 0; font-size: 12.5px; color: var(--faint); }
+.platehead__clear { width: 100%; margin-top: 14px; }
+.plateitems { list-style: none; margin: 0; padding: 0;
+              display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.plateitems .planitem { background: var(--surface); border: 1px solid var(--border); }
