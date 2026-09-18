@@ -233,6 +233,14 @@ def pool(dsn: str | None = None, max_size: int = 8) -> ConnectionPool:
         resolved, min_size=1, max_size=max_size,
         kwargs={"row_factory": dict_row, "prepare_threshold": PREPARE_THRESHOLD},
         open=True,
+        # A pool hands out whatever it is holding unless told to look first, and
+        # Supabase closes connections that have been idle a while. A server left
+        # running overnight would otherwise wake up and serve 500s off dead
+        # sockets until every pooled connection had failed once. `check` pings
+        # before handing over and quietly replaces anything broken; `max_idle`
+        # recycles connections before the pooler gets round to dropping them.
+        check=ConnectionPool.check_connection,
+        max_idle=120.0,
     )
     with connections.connection() as conn:
         ensure_schema(conn)

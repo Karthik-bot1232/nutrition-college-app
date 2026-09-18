@@ -301,19 +301,24 @@ function scopeText() {
    the colour dependency but still asked the reader to expand a letter. The word
    costs a little width and removes the last thing standing between looking at a
    row and knowing what it says. */
-/** The three macros on one line. A tile is about 170px wide, so the four
-    labelled stat boxes that used to sit here only fit by shrinking the type
-    past reading size; calories get the headline instead and the macros get a
-    single compact row under it. */
-function macroRow(item) {
-  const n = item.nutrients;
-  const cells = [['p', 'P', 'Protein', n.protein_g], ['c', 'C', 'Carbs', n.total_carbs_g],
-                 ['f', 'F', 'Fat', n.total_fat_g]].map(([cls, abbr, label, g]) =>
-    `<span class="mac mac--${cls}">
-       <i aria-hidden="true">${abbr}</i><b aria-hidden="true">${g == null ? '–' : Math.round(g)}</b>
-       <span class="sr">${label} ${g == null ? 'not published' : Math.round(g) + ' grams'}</span>
-     </span>`).join('');
-  return `<div class="macs">${cells}</div>`;
+/** Calories and protein. Nothing else.
+
+    A tile carrying four numbers in three boxes read as a pile of digits rather
+    than a food, and three of the four were not what anyone was looking at. This
+    is a protein-first app -- it sorts by protein, it filters by protein, the
+    builder targets protein -- so the browse tile answers "how big is it" and
+    "is it worth eating" and stops. Carbs, fat and the other fourteen nutrients
+    are one tap away in the label, where someone who wants them is going anyway. */
+function calLine(item) {
+  const cal = item.calories == null ? '–' : Math.round(item.calories);
+  const pro = item.nutrients.protein_g;
+  // Below a gram it is not a protein source, and "0g protein" under every
+  // syrup and dressing is a column of zeroes that says what the name already did.
+  const worth = pro != null && Math.round(pro) >= 1;
+  return `<p class="tile__nums">
+    <b>${cal}</b><span>cal</span>
+    ${worth ? `<em>${Math.round(pro)}g protein</em>` : ''}
+  </p>`;
 }
 
 // Two allergens then a count, not three: the chip sits beside the diet badges
@@ -340,7 +345,6 @@ function tileFoot(item) {
 function card(item, sub) {
   state.items.set(item.recipe_id, item);
   const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
-  const cal = item.calories == null ? '–' : Math.round(item.calories);
   return `<article class="tile" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
       aria-label="${esc(item.name)}, details">
     <button class="add" data-add="${esc(item.recipe_id)}" data-in="${inPlate}"
@@ -348,8 +352,7 @@ function card(item, sub) {
             >${inPlate === '1' ? '✓' : '+'}</button>
     <h3 class="tile__name">${esc(item.name)}</h3>
     <p class="tile__sub">${esc(sub || item.serving_size || '')}</p>
-    <p class="tile__cal"><b>${cal}</b><span>cal</span></p>
-    ${macroRow(item)}
+    ${calLine(item)}
     ${tileFoot(item)}
   </article>`;
 }
