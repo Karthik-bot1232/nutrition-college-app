@@ -1,19 +1,24 @@
 #!/bin/bash
-# Weekly top-up of every registered college, plus an export of the new window.
+# Daily top-up of every registered college, plus an export of the new window.
 #
 # The database (Supabase) is the source of truth and scraping only fills its
 # gaps: a menu slot already stored is not fetched again, and a recipe's label is
 # fetched once and then never again. So a run costs only the days the college
-# has newly published -- a few minutes, not the ~15 the first full pull took.
+# has newly published, and a day with nothing new takes about nine seconds.
 #
-# Weekly rather than daily because of that: with nothing re-fetched, a daily run
-# would spend six days a week discovering it has nothing to do. The trade is
-# that a menu the college edits after publishing keeps whatever it said when it
-# was first scraped. Re-pull a window deliberately when that matters:
+# Daily rather than weekly precisely because it is that cheap. Most runs do
+# nothing, and the ones that matter are the exceptions: a day the college
+# publishes gets picked up within 24 hours instead of up to seven, and a run
+# that fails because the site is down is retried tomorrow rather than next week.
+# Slots that come back empty -- a weekend breakfast, a day not yet published --
+# are never marked stored, so they are retried every run until they fill in.
 #
-#   ./weekly_refresh.sh              # default 14-day window
-#   DAYS=21 ./weekly_refresh.sh      # UMD publishes at least two weeks out
-#   FORCE=1 ./weekly_refresh.sh      # re-scrape the window even if stored
+# What no cadence fixes: a menu the college edits after publishing keeps what it
+# said when first scraped. Re-pull deliberately when that matters.
+#
+#   ./daily_refresh.sh              # default 14-day window
+#   DAYS=21 ./daily_refresh.sh      # UMD publishes at least two weeks out
+#   FORCE=1 ./daily_refresh.sh      # re-scrape the window even if stored
 
 set -uo pipefail
 

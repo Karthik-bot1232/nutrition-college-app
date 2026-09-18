@@ -7,7 +7,8 @@ format. Currently onboarded: **University of Maryland** (`umd`).
 The database is the source of truth, not a cache. Scraping only fills its gaps:
 a menu slot (date / hall / meal) already stored is never fetched again, and a
 recipe's label is fetched once and then read from the database forever after.
-A weekly run therefore costs only the days the college has newly published.
+A daily run therefore costs only the days the college has newly published,
+and most days that is nothing at all.
 
 ## Setup
 
@@ -41,7 +42,7 @@ python3 -m dining.query stats
 python3 -m dining.serve --open          # http://127.0.0.1:8000
 ```
 
-`refresh` writes, `export` and `serve` only read. `weekly_refresh.sh` runs the
+`refresh` writes, `export` and `serve` only read. `daily_refresh.sh` runs the
 first two and drops the window's files in `exports/`.
 
 ## Setting up Supabase
@@ -79,22 +80,29 @@ changes nothing and a re-run after a failure just finishes the job. Keep
 `nutrition.db` around until you are satisfied, then delete it -- nothing reads
 it any more.
 
-## Running it weekly
+## Running it daily
 
-`weekly_refresh.sh` tops up every registered college and writes the window's
-exports. `com.nutrition.weeklyrefresh.plist` runs it Monday at 05:00 via
-launchd, which (unlike cron) runs a job it missed once the Mac wakes up.
+`daily_refresh.sh` tops up every registered college and writes the window's
+exports. `com.nutrition.dailyrefresh.plist` runs it at 05:00 via launchd, which
+(unlike cron) runs a job it missed once the Mac wakes up.
 
 ```bash
-cp com.nutrition.weeklyrefresh.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.nutrition.weeklyrefresh.plist
-launchctl start com.nutrition.weeklyrefresh     # run it once now
+cp com.nutrition.dailyrefresh.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.nutrition.dailyrefresh.plist
+launchctl start com.nutrition.dailyrefresh     # run it once now
 ```
 
-Weekly rather than daily because nothing already stored is re-fetched, so six
-of seven daily runs would find nothing to do. The trade is that a menu the
-college edits after publishing keeps what it said when first scraped; re-pull
-deliberately when that matters, with `FORCE=1 ./weekly_refresh.sh`.
+Most runs do nothing and finish in about nine seconds, because nothing already
+stored is re-fetched. Daily is worth it for the exceptions: a newly published
+day is picked up within 24 hours rather than up to a week, and a run that fails
+because the site is down is retried tomorrow. `--days 14` is the window each
+run *examines*, not what it fetches -- it settles into collecting roughly seven
+new days a week and staying about two weeks ahead.
+
+A slot that comes back empty is never recorded as stored, so weekend breakfasts
+and days the college has not published yet are retried on every run until they
+fill in. What no cadence fixes is a menu edited after publication: it keeps what
+it said when first scraped, unless you re-pull with `FORCE=1 ./daily_refresh.sh`.
 
 The script runs `./.venv/bin/python`, not `python3`. That is not a style
 preference: launchd runs with a bare `PATH`, `python3` there resolves to
