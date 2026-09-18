@@ -142,7 +142,7 @@ button { cursor: pointer; }
 
 /* Brand and dates scroll away; only the controls you re-use stay pinned, which
    halves the chrome that used to sit above the food. */
-.appbar { padding: 11px 0 0; background: var(--bg); }
+.appbar { padding: 10px 0 0; background: var(--bg); }
 .appbar__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 .brand h1 { margin: 0; font-size: 19px; font-weight: 760; letter-spacing: -.028em; }
@@ -171,7 +171,7 @@ button { cursor: pointer; }
    read out, but display:none in some engines also kills the <use> references. */
 .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-.weekbar { padding: 9px 0 10px; }
+.weekbar { padding: 8px 0 9px; }
 
 /* A week at a time, paged. Twenty days in one scrolling run gave no sense of
    which week you were looking at, and put this Tuesday and next Tuesday side by
@@ -217,7 +217,7 @@ button { cursor: pointer; }
 /* ---------- sticky toolbar ---------- */
 
 .toolbar {
-  position: sticky; top: 0; z-index: 30; padding: 8px 0 9px;
+  position: sticky; top: 0; z-index: 30; padding: 7px 0 8px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(180%) blur(14px);
 }
@@ -292,7 +292,7 @@ button { cursor: pointer; }
 
 /* ---------- hero: the day's plate ---------- */
 
-.hero { display: grid; gap: 10px; padding-top: 16px; }
+.hero:not(:empty) { display: grid; gap: 10px; padding-top: 14px; }
 .hero:not(:empty) + main { padding-top: 26px; }
 
 .linkbtn {
@@ -347,7 +347,7 @@ main { padding-top: 22px; }
 
 .jumpbar {
   display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none;
-  margin: 0 -16px 18px; padding: 0 16px 4px; align-items: center;
+  margin: 0 -16px 14px; padding: 0 16px 4px; align-items: center;
 }
 .jumpbar::-webkit-scrollbar { display: none; }
 .jumpbar__label {

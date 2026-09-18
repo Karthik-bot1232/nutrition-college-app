@@ -848,15 +848,10 @@ function renderHero() {
   // An empty plate used to occupy a ring, a headline, a paragraph and three
   // empty macro tiles -- most of a phone screen of nothing, in front of the
   // food, every time the page loaded. Empty is now one line.
-  if (!n) {
-    $('#hero').innerHTML = `
-      <div class="plateline plateline--empty">
-        <svg class="plateline__ic" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
-        <p>Tap <b>+</b> on any item to build a plate. Totals stay per day.</p>
-      </div>`;
-    return;
-  }
+  // Nothing at all when the plate is empty. There is a Plate tab carrying a
+  // count and a + on every card; a banner explaining both, above the food, on
+  // every single load, was the app talking about itself.
+  if (!n) { $('#hero').innerHTML = ''; return; }
 
   const macro = (cls, label, grams) =>
     `<div class="pmacro pmacro--${cls}"><b>${Math.round(grams)}g</b><span>${label}</span></div>`;
