@@ -701,8 +701,11 @@ body { padding-bottom: 82px; }
    when it is the thing you asked for. */
 .gbar__fill { height: 100%; border-radius: 999px; background: var(--border-strong);
               transition: width .25s; }
-.gbar[data-state="under"] .gbar__fill { background: var(--border-strong); }
-.gbar[data-state="near"] .gbar__fill { background: var(--carbs-ink); }
+/* Three states, not four. The bar's length already says how close you are, so
+   a separate "nearly there" colour only added a muddy olive between grey and
+   green that meant nothing on its own. */
+.gbar[data-state="under"] .gbar__fill,
+.gbar[data-state="near"] .gbar__fill { background: var(--border-strong); }
 .gbar[data-state="ok"] .gbar__fill { background: var(--accent); }
 .gbar[data-state="ok"] .gbar__top b { color: var(--accent); }
 /* Over a ceiling is a different kind of fact from under a floor, so it does not
@@ -726,3 +729,52 @@ body { padding-bottom: 82px; }
 .plateitems { list-style: none; margin: 0; padding: 0;
               display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
 .plateitems .planitem { background: var(--surface); border: 1px solid var(--border); }
+
+/* ---------- plate: a day, by meal ---------- */
+
+.daymacros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 13px; }
+.daymacro { padding: 9px 11px; border-radius: var(--r-md); background: var(--tile); line-height: 1.15; }
+.daymacro b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
+              font-variant-numeric: tabular-nums; }
+.daymacro span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
+.daymacro--p b { color: var(--protein-ink); }
+.daymacro--c b { color: var(--carbs-ink); }
+.daymacro--f b { color: var(--fat-ink); }
+
+.meals { display: grid; gap: 9px; }
+
+.meal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden;
+}
+/* A meal you have not eaten yet still holds its place, so the day reads as
+   three slots with gaps rather than a list that silently omits them. */
+.meal--empty { background: none; box-shadow: none; border-style: dashed; }
+
+.meal__head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 13px 14px; border: 0; background: none; text-align: left;
+  min-height: 52px;
+}
+.meal__head:disabled { cursor: default; }
+.meal__name { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; flex: none; }
+.meal__sum { flex: 1; min-width: 0; font-size: 12.5px; color: var(--faint);
+             font-variant-numeric: tabular-nums; text-align: right;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meal--empty .meal__sum { font-style: italic; }
+.meal__count {
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--tile); color: var(--muted);
+  font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
+}
+.meal__head .chev {
+  flex: none; width: 15px; height: 15px; fill: none; stroke: var(--faint);
+  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  transition: transform .15s;
+}
+.meal__head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+
+.meal__body { padding: 0 14px 13px; border-top: 1px solid var(--border); }
+.meal__body .plateitems { margin-top: 12px; }
+.meal__body .plan__bars { margin-top: 13px; }
+.meal__clear { width: 100%; margin-top: 12px; }
