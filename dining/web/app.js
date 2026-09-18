@@ -301,75 +301,56 @@ function scopeText() {
    the colour dependency but still asked the reader to expand a letter. The word
    costs a little width and removes the last thing standing between looking at a
    row and knowing what it says. */
-const STATS = [
-  ['cal', 'ic-cal', 'Calories', null],
-  ['carb', 'ic-carb', 'Carbs', 'total_carbs_g'],
-  ['protein', 'ic-protein', 'Protein', 'protein_g'],
-  ['fat', 'ic-fat', 'Fat', 'total_fat_g'],
-];
-
-function statTiles(item) {
-  const cells = STATS.map(([cls, icon, label, key]) => {
-    const raw = key === null ? item.calories : item.nutrients[key];
-    const shown = raw == null ? '–' : Math.round(raw) + (key === null ? '' : 'g');
-    const spoken = raw == null
-      ? `${label} not published`
-      : `${label} ${Math.round(raw)}${key === null ? '' : ' grams'}`;
-    return `<div class="stat stat--${cls}">
-      <svg class="stat__ic" aria-hidden="true"><use href="#${icon}"/></svg>
-      <b aria-hidden="true">${shown}</b>
-      <span aria-hidden="true">${label}</span>
-      <span class="sr">${spoken}</span>
-    </div>`;
-  }).join('');
-  return `<div class="stats">${cells}</div>`;
+/** The three macros on one line. A tile is about 170px wide, so the four
+    labelled stat boxes that used to sit here only fit by shrinking the type
+    past reading size; calories get the headline instead and the macros get a
+    single compact row under it. */
+function macroRow(item) {
+  const n = item.nutrients;
+  const cells = [['p', 'P', 'Protein', n.protein_g], ['c', 'C', 'Carbs', n.total_carbs_g],
+                 ['f', 'F', 'Fat', n.total_fat_g]].map(([cls, abbr, label, g]) =>
+    `<span class="mac mac--${cls}">
+       <i aria-hidden="true">${abbr}</i><b aria-hidden="true">${g == null ? '–' : Math.round(g)}</b>
+       <span class="sr">${label} ${g == null ? 'not published' : Math.round(g) + ' grams'}</span>
+     </span>`).join('');
+  return `<div class="macs">${cells}</div>`;
 }
 
 // Two allergens then a count, not three: the chip sits beside the diet badges
 // and the third name is what pushes the row onto a second line on a phone,
 // which costs a line on every card in a list that runs to 300 of them.
-function tags(item, max = 2) {
-  const out = [];
-  if (item.label_implausible)
-    out.push(`<span class="badge badge--warn" title="This label fails a plausibility check — it reads as a batch rather than one serving. Verify against the posted card.">check label</span>`);
-  else if (item.nutrition_suspect)
-    out.push(`<span class="badge badge--warn" title="The macros on this label do not add up to its calorie count.">macros off</span>`);
-  item.diets.forEach(d => out.push(`<span class="badge badge--diet">${esc(titleCase(d))}</span>`));
-
-  // Allergens stay quieter than the diet badges -- on a menu where most items
-  // contain something, loud pills drown out the food -- but they are a chip like
-  // everything else on this row now. As italic text wedged between badges they
-  // read as a stray caption rather than a property of the item, which is most of
-  // why the row looked unsorted. "Contains" is what separates them from a diet
-  // badge at a glance: "Dairy" beside "Vegan" is otherwise ambiguous.
-  let note = '';
-  if (!item.allergen_data_published) {
-    note = `<span class="badge badge--unknown" title="Nothing was published. This is not a claim that the item is free of anything.">No allergen data</span>`;
-  } else if (item.allergens.length) {
-    const shown = item.allergens.slice(0, max).map(titleCase).join(', ');
-    const more = item.allergens.length > max ? ` +${item.allergens.length - max}` : '';
-    note = `<span class="badge badge--allergen" title="Contains ${esc(item.allergens.map(titleCase).join(', '))}">Contains ${esc(shown)}${more}</span>`;
-  }
-  if (!out.length && !note) return '';
-  return `<div class="card__meta">${out.join('')}${note}</div>`;
+/** The one-line footer: diet first, then what it contains. On a tile there is
+    room for one line, and which line matters depends on the reader -- so the
+    diet badge and the allergen text share it rather than one winning. */
+function tileFoot(item) {
+  const warn = item.label_implausible ? 'check label'
+    : item.nutrition_suspect ? 'macros off' : '';
+  const diet = item.diets[0] ? `<span class="dot dot--${esc(item.diets[0])}">${
+    esc(titleCase(item.diets[0]))}</span>` : '';
+  let note;
+  if (!item.allergen_data_published) note = '<span class="tfoot__a tfoot__a--none">No allergen data</span>';
+  else if (item.allergens.length) {
+    const shown = item.allergens.slice(0, 2).map(titleCase).join(', ');
+    const more = item.allergens.length > 2 ? ` +${item.allergens.length - 2}` : '';
+    note = `<span class="tfoot__a">${esc(shown)}${more}</span>`;
+  } else note = '<span class="tfoot__a">No allergens listed</span>';
+  return `<div class="tfoot">${warn ? `<span class="dot dot--warn">${warn}</span>` : ''}${diet}${note}</div>`;
 }
 
 function card(item, sub) {
   state.items.set(item.recipe_id, item);
   const inPlate = state.plate.some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
-  return `<article class="card" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
+  const cal = item.calories == null ? '–' : Math.round(item.calories);
+  return `<article class="tile" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
       aria-label="${esc(item.name)}, details">
-    <div class="card__top">
-      <div class="card__id">
-        <h3 class="card__name">${esc(item.name)}</h3>
-        <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
-      </div>
-      <button class="add" data-add="${esc(item.recipe_id)}" data-in="${inPlate}"
-              aria-label="${inPlate === '1' ? 'Remove from' : 'Add to'} plate"
-              >${inPlate === '1' ? '✓' : '+'}</button>
-    </div>
-    ${statTiles(item)}
-    ${tags(item)}
+    <button class="add" data-add="${esc(item.recipe_id)}" data-in="${inPlate}"
+            aria-label="${inPlate === '1' ? 'Remove from' : 'Add to'} plate"
+            >${inPlate === '1' ? '✓' : '+'}</button>
+    <h3 class="tile__name">${esc(item.name)}</h3>
+    <p class="tile__sub">${esc(sub || item.serving_size || '')}</p>
+    <p class="tile__cal"><b>${cal}</b><span>cal</span></p>
+    ${macroRow(item)}
+    ${tileFoot(item)}
   </article>`;
 }
 
@@ -848,15 +829,10 @@ function renderHero() {
   // An empty plate used to occupy a ring, a headline, a paragraph and three
   // empty macro tiles -- most of a phone screen of nothing, in front of the
   // food, every time the page loaded. Empty is now one line.
-  if (!n) {
-    $('#hero').innerHTML = `
-      <div class="plateline plateline--empty">
-        <svg class="plateline__ic" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
-        <p>Tap <b>+</b> on any item to build a plate. Totals stay per day.</p>
-      </div>`;
-    return;
-  }
+  // Nothing at all when the plate is empty. There is a Plate tab with a count on
+  // it and a + on every tile; a banner explaining both, above the food, on every
+  // load, was the app talking about itself.
+  if (!n) { $('#hero').innerHTML = ''; return; }
 
   const macro = (cls, label, grams) =>
     `<div class="pmacro pmacro--${cls}"><b>${Math.round(grams)}g</b><span>${label}</span></div>`;
