@@ -84,18 +84,6 @@
   --maxw:  1280px;
 }
 
-/* One toggle kept for anyone who needs light; dark is the design. */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #F7F7F8; --surface: #FFFFFF; --card: #FFFFFF; --card-2: #F2F2F4;
-  --border: #E4E4E7; --border-control: #9A9AA3;
-  --text: #121214; --text-2: #52525B; --text-3: #5F5F68;
-  --accent-text: #C41429; --accent-wash: rgba(226, 24, 51, .10);
-  --carbs: #9A6B00; --protein: #C0263C; --fat: #1A62C4;
-  --good: #15803D; --good-wash: rgba(21, 128, 61, .12);
-  --warn: #8A6100; --warn-wash: rgba(138, 97, 0, .12);
-  --danger: #B3261E; --danger-wash: rgba(179, 38, 30, .10);
-}
 
 /* =========================================================================
    Base
