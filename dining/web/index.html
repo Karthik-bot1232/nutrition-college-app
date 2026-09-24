@@ -17,9 +17,10 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2216%22 height=%2216%22 fill=%22%23E21833%22/%3E%3Crect x=%2216%22 width=%2216%22 height=%2216%22 fill=%22%23FFD200%22/%3E%3Crect y=%2216%22 width=%2216%22 height=%2216%22 fill=%22%23FFD200%22/%3E%3Crect x=%2216%22 y=%2216%22 width=%2216%22 height=%2216%22 fill=%22%23E21833%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body data-view="home">
 
 <svg class="sprite" aria-hidden="true" focusable="false"><defs>
+  <symbol id="ic-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z"/></symbol>
   <symbol id="ic-browse" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
   <symbol id="ic-build" viewBox="0 0 24 24">
     <path d="m12 3 1.9 4.4L18 9.3l-4.1 1.9L12 15.6l-1.9-4.4L6 9.3l4.1-1.9L12 3Z"/>
@@ -32,64 +33,85 @@
   <symbol id="ic-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
   <symbol id="ic-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
   <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></symbol>
+  <symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5.5 12h13"/></symbol>
   <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4.8 12.6 9.6 17.4 19.2 6.9"/></symbol>
   <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.8"/></symbol>
   <symbol id="ic-warn" viewBox="0 0 24 24"><path d="M12 3.9 2.9 19.8h18.2L12 3.9Z"/><path d="M12 10.2v4.3"/><path d="M12 17.3v.1"/></symbol>
   <symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1"/></symbol>
+  <symbol id="ic-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  <symbol id="ic-drop" viewBox="0 0 24 24"><path d="M12 3.5s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11Z"/></symbol>
+  <symbol id="ic-flame" viewBox="0 0 24 24"><path d="M12 21a6.5 6.5 0 0 0 6.5-6.5c0-4.5-4-6.5-4.5-10-2 1.5-3.2 3.6-3 6-1.2-.5-2-1.7-2.2-3C7 9.2 5.5 11.7 5.5 14.5A6.5 6.5 0 0 0 12 21Z"/></symbol>
+  <symbol id="ic-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z"/><path d="M5 19 13 11"/></symbol>
+  <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6L13 3Z"/></symbol>
+  <symbol id="ic-feather" viewBox="0 0 24 24"><path d="M20 4c-8 0-14 5-14 13v3"/><path d="M6 17c6 0 11-3 12.5-9"/></symbol>
+  <symbol id="ic-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/><path d="M12 8v4l2.5 1.5"/></symbol>
 </defs></svg>
 
 <div class="shell">
 
-  <!-- Sidebar on desktop; the sticky top bar and controls on mobile. -->
-  <div class="sidebar">
-    <header class="topbar">
-      <div class="wrap">
-        <!-- Campus first: it is the question you answer before any other. -->
-        <div class="topbar__row">
-          <span class="brandmark" aria-hidden="true"></span>
-          <button class="hallbtn" id="hallBtn" aria-haspopup="dialog">
-            <span class="sr">Campus,</span>
-            <span class="hallbtn__name" id="hallName">Loading…</span>
-            <span class="hallbtn__count" id="hallCount" aria-hidden="true"></span>
-            <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
-          </button>
-          <button class="iconbtn" id="statsToggle" aria-label="About this data">
-            <svg class="gi" aria-hidden="true"><use href="#ic-info"/></svg>
-          </button>
+  <header class="topbar" id="topbar">
+    <div class="wrap">
+      <div class="topbar__row">
+        <span class="brandmark" aria-hidden="true"></span>
+        <!-- Home and Plate are about the day, not one hall: they get a title. -->
+        <div class="topbar__title" id="topTitle">
+          <b id="greeting">Dining</b><span id="topSub"></span>
         </div>
-
-        <!-- Search right under it, always on screen, never scrolled away. -->
-        <div class="searchrow">
-          <div class="search">
-            <svg class="gi gi--search" aria-hidden="true"><use href="#ic-search"/></svg>
-            <label class="sr" for="search">Search items</label>
-            <input id="search" type="search" placeholder="Search items…"
-                   autocomplete="off" spellcheck="false" enterkeyhint="search">
-            <button class="search__clear" id="searchClear" hidden aria-label="Clear search">
-              <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
-            </button>
-          </div>
-          <button class="filterbtn" id="filterToggle" aria-haspopup="dialog"
-                  aria-label="Filters">
-            <svg class="gi" aria-hidden="true"><use href="#ic-filter"/></svg>
-            <span class="filterbtn__count" id="filterCount" hidden>0</span>
-          </button>
-        </div>
+        <!-- Menu and Build are about one hall: the hall is the first question. -->
+        <button class="hallbtn" id="hallBtn" aria-haspopup="dialog">
+          <span class="sr">Dining hall,</span>
+          <span class="hallbtn__dot" id="hallDot" aria-hidden="true"></span>
+          <span class="hallbtn__name" id="hallName">Loading…</span>
+          <span class="hallbtn__count" id="hallCount" aria-hidden="true"></span>
+          <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
+        </button>
+        <button class="iconbtn" id="favToggle" aria-label="Favorites" aria-haspopup="dialog">
+          <svg class="gi" aria-hidden="true"><use href="#ic-heart"/></svg>
+        </button>
+        <button class="iconbtn" id="statsToggle" aria-label="About this data">
+          <svg class="gi" aria-hidden="true"><use href="#ic-info"/></svg>
+        </button>
       </div>
-    </header>
 
-    <div class="wrap controls">
-      <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal period"></div>
+      <div class="searchrow">
+        <div class="search">
+          <svg class="gi gi--search" aria-hidden="true"><use href="#ic-search"/></svg>
+          <label class="sr" for="search">Search food</label>
+          <input id="search" type="search" placeholder="Search food, e.g. chicken"
+                 autocomplete="off" spellcheck="false" enterkeyhint="search"
+                 aria-controls="suggest">
+          <button class="search__clear" id="searchClear" hidden aria-label="Clear search">
+            <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
+          </button>
+        </div>
+        <button class="filterbtn" id="filterToggle" aria-haspopup="dialog" aria-label="Filters">
+          <svg class="gi" aria-hidden="true"><use href="#ic-filter"/></svg>
+          <span class="filterbtn__count" id="filterCount" hidden>0</span>
+        </button>
+      </div>
+
+      <!-- Recent and popular searches, shown while the box is focused and empty. -->
+      <div class="suggest" id="suggest" hidden></div>
+
+      <!-- Menu only: one tap to any station, and it shows where you are. -->
+      <nav class="stationbar" id="stationBar" aria-label="Jump to station" hidden></nav>
     </div>
-  </div>
+  </header>
 
   <div class="main">
+    <div class="wrap controls" id="mealControls">
+      <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal period"></div>
+    </div>
+
     <nav class="wrap" id="dateNav" aria-label="Date">
       <div class="weeknav" id="weekNav"></div>
       <div class="dates" id="dateStrip" role="tablist" aria-label="Day"></div>
     </nav>
 
     <div class="wrap">
+      <div class="quickrow" id="quickRow" role="group" aria-label="Quick filters"></div>
       <div class="chiprow chiprow--active" id="activeFilters" hidden
            role="group" aria-label="Active filters"></div>
     </div>
@@ -101,6 +123,7 @@
       </p>
     </div>
 
+    <section class="wrap" id="homeView" aria-label="Today"></section>
     <section class="wrap" id="hero" aria-live="polite"></section>
     <main class="wrap" id="content"></main>
     <section class="wrap" id="buildView" hidden></section>
@@ -119,9 +142,13 @@
 
 <nav class="tabbar" aria-label="Sections">
   <div class="tabbar__inner">
-    <button class="tab" data-tab="browse" aria-current="page">
+    <button class="tab" data-tab="home">
+      <span class="tab__iconwrap"><svg class="gi" aria-hidden="true"><use href="#ic-home"/></svg></span>
+      <span class="tab__label">Today</span>
+    </button>
+    <button class="tab" data-tab="browse">
       <span class="tab__iconwrap"><svg class="gi" aria-hidden="true"><use href="#ic-browse"/></svg></span>
-      <span class="tab__label">Browse</span>
+      <span class="tab__label">Menu</span>
     </button>
     <button class="tab" data-tab="build">
       <span class="tab__iconwrap"><svg class="gi" aria-hidden="true"><use href="#ic-build"/></svg></span>
@@ -132,7 +159,7 @@
         <svg class="gi" aria-hidden="true"><use href="#ic-plate"/></svg>
         <span class="tab__badge" id="plateBadge" hidden>0</span>
       </span>
-      <span class="tab__label">Plate</span>
+      <span class="tab__label">Tracker</span>
       <span class="tab__meta" id="plateCal"></span>
     </button>
   </div>
@@ -142,12 +169,15 @@
   <div class="sheet__body">
     <div class="sheet__grip" aria-hidden="true"></div>
     <div class="sheet__head">
-      <div><h2 id="hallSheetTitle">Dining hall</h2><p>Pick where you are eating</p></div>
+      <div><h2 id="hallSheetTitle">Dining hall</h2><p id="hallSheetSub">Pick where you are eating</p></div>
       <button class="iconbtn" data-close aria-label="Close">
         <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
       </button>
     </div>
-    <div class="sheet__content"><div class="rows" id="hallOptions"></div></div>
+    <div class="sheet__content"><div class="rows" id="hallOptions"></div>
+      <p class="hint" id="hoursNote" hidden>Hours are the usual semester schedule. Breaks,
+        holidays and special events change them, so check the posted times if it matters.</p>
+    </div>
   </div>
 </dialog>
 
@@ -173,6 +203,11 @@
         <p class="hint">Off by default: an item with nothing published is not a claim that it is
           free of anything.</p>
       </section>
+      <p class="profile-note">
+        <svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>
+        <span>Your diet and allergen choices are remembered on this phone, and Build and
+          Today's picks follow them too.</span>
+      </p>
       <section class="fgroup">
         <h3>Targets</h3>
         <div class="fgrid">
@@ -213,33 +248,49 @@
   <div class="sheet__body">
     <div class="sheet__grip" aria-hidden="true"></div>
     <div class="sheet__head">
-      <div><h2 id="goalSheetTitle">Your targets</h2><p>What one meal should add up to</p></div>
+      <div><h2 id="goalSheetTitle">Your targets</h2><p>Used by the tracker and the builder</p></div>
       <button class="iconbtn" data-close aria-label="Close">
         <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
       </button>
     </div>
     <div class="sheet__content">
-      <div class="fgrid">
-        <label class="field"><span>Calories</span>
-          <input type="number" inputmode="numeric" id="gCalories" min="0" step="50" placeholder="700"></label>
-        <label class="field"><span>Protein at least (g)</span>
-          <input type="number" inputmode="numeric" id="gProtein" min="0" step="5" placeholder="35"></label>
-        <label class="field"><span>Carbs at most (g)</span>
-          <input type="number" inputmode="numeric" id="gCarbs" min="0" step="5" placeholder="any"></label>
-        <label class="field"><span>Fat at most (g)</span>
-          <input type="number" inputmode="numeric" id="gFat" min="0" step="5" placeholder="any"></label>
-      </div>
-      <p class="hint">Calories and protein steer the builder. Carbs and fat act as ceilings it
-        tries not to cross.</p>
+      <section class="fgroup">
+        <h3>For the whole day</h3>
+        <div class="fgrid">
+          <label class="field"><span>Calories per day</span>
+            <input type="number" inputmode="numeric" id="gDayCalories" min="0" step="50" placeholder="2000"></label>
+          <label class="field"><span>Protein per day (g)</span>
+            <input type="number" inputmode="numeric" id="gDayProtein" min="0" step="5" placeholder="100"></label>
+          <label class="field"><span>Water (cups)</span>
+            <input type="number" inputmode="numeric" id="gWater" min="1" max="16" step="1" placeholder="8"></label>
+        </div>
+      </section>
+      <section class="fgroup">
+        <h3>For one meal</h3>
+        <div class="fgrid">
+          <label class="field"><span>Calories</span>
+            <input type="number" inputmode="numeric" id="gCalories" min="0" step="50" placeholder="700"></label>
+          <label class="field"><span>Protein at least (g)</span>
+            <input type="number" inputmode="numeric" id="gProtein" min="0" step="5" placeholder="35"></label>
+          <label class="field"><span>Carbs at most (g)</span>
+            <input type="number" inputmode="numeric" id="gCarbs" min="0" step="5" placeholder="any"></label>
+          <label class="field"><span>Fat at most (g)</span>
+            <input type="number" inputmode="numeric" id="gFat" min="0" step="5" placeholder="any"></label>
+        </div>
+        <p class="hint">Calories and protein steer the builder. Carbs and fat act as ceilings it
+          tries not to cross.</p>
+      </section>
+      <p class="hint">2,000 calories is the reference every printed nutrition label uses, not a
+        recommendation for you. Needs vary a lot with size and activity.</p>
     </div>
     <div class="sheet__foot">
-      <button class="btn btn--ghost" id="goalReset">Clear targets</button>
+      <button class="btn btn--ghost" id="goalReset">Reset</button>
       <button class="btn btn--primary" data-close>Save</button>
     </div>
   </div>
 </dialog>
 
-<dialog id="sheet" class="sheet"></dialog>
+<dialog id="sheet" class="sheet" aria-labelledby="sheetTitle"></dialog>
 
 <script src="/app.js"></script>
 </body>

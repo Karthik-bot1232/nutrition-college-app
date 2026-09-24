@@ -142,25 +142,54 @@ nutrient its own column. Use it for spreadsheets and quick analysis.
 ## The web UI
 
 `dining.serve` puts the stored week behind a small read-only JSON API and a
-single-page front end.
+single-page front end, built as a phone app: four tabs, sheets that slide up,
+and a true-black theme.
 
-- **Browse** a date, meal and hall, grouped by station. `All halls` puts the
-  three halls side by side for one meal. Stations collapse, and a jump bar
-  indexes them -- lunch at South Campus runs to 23 stations and 300+ rows.
-- **Search and filter** on name, protein, calories, diet and allergens, scoped
-  to one meal, a whole day, or every stored day. A recipe served at three halls
-  collapses to one card listing where to find it.
-- **Item detail** shows the full label -- all 17 nutrients, ingredients, both
-  allergen sources side by side (the label page and the menu-row icons, which
-  disagree), every place it is served that week, when it was scraped, and a link
-  to the source page.
+- **Today** is the home screen. It shows which halls are open right now and
+  until when, whether any of your favorites are on today's menu, and three
+  rails of picks for the current meal: most protein, light but filling, and
+  plant-based. Picks respect your saved diet and allergen profile. Below that
+  are your day's calories and macros, a water tracker and one-tap searches.
+- **Menu** opens on the meal being served now (from the adapter's `hours`),
+  grouped by station. A sticky station index jumps anywhere in a 23-station
+  menu and highlights where you are. Quick chips cover Favorites, High protein,
+  Vegan, Vegetarian, Halal and Under 400 cal. The full filter sheet adds
+  allergens, protein/calorie bounds, sort and scope. Diet and allergen choices
+  are remembered on the phone, because an allergy is not a per-visit setting.
+- **Search** suggests recent and popular searches, and collapses a recipe
+  served at three halls into one card listing where to find it.
+- **Item detail** shows the full label with % Daily Value, where the calories
+  come from, both allergen sources side by side, when and where it is served
+  next, and a Save (favorite) button.
+- **Build** picks plates from what is actually being served to hit a
+  per-meal calorie and protein target.
+- **Tracker** logs each meal with a servings stepper (half-serving steps),
+  shows the day against a daily calorie and protein target as a ring, tracks
+  water, and charts the week. Everything personal is kept in the browser's
+  localStorage and nothing is written back to the database.
 - **About this data** (the ⓘ button) is `query stats` in the UI: coverage, what
   the source never published, and how many labels fail each check.
-- **Plate**: add items for a running per-day calorie and macro total, kept in
-  the browser's localStorage. Nothing is written back to the database.
 
 Endpoints are `/api/meta`, `/api/menu`, `/api/search`, `/api/item` and
 `/api/stats`; every one is a GET returning JSON, so the front end is replaceable.
+
+### Working on the UI without a database
+
+```bash
+python3 -m dining.demo --open          # http://127.0.0.1:8000
+```
+
+`dining.demo` serves the same `dining/web` files, but answers the API from the
+sample in `frontend/src/mockData.js` (577 items from real UMD menus) spread over
+two weeks. It needs only the standard library, with no `.env` and no psycopg.
+
+### Hours
+
+Each adapter can declare `hours`: a serving window per meal, for weekdays and
+for weekends. The UI uses it to open on the current meal and to show open or
+closed. UMD's are the typical semester schedule, and the UI labels them as the
+usual hours. Update `UMDAdapter.hours` if the posted times change. An adapter
+without `hours` simply shows no open/closed status.
 
 No framework and no build step -- `http.server` plus `psycopg`, and the front
 end has no dependencies at all. It serves what `refresh` already stored, so a
