@@ -270,7 +270,7 @@ button { cursor: pointer; }
 }
 .segmented button[disabled] { opacity: .32; cursor: default; }
 
-.pills { display: flex; gap: 7px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
+.pills { display: block; margin-top: var(--s-2); }
 .pills::-webkit-scrollbar { display: none; }
 .pill {
   flex: none; padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 580;
@@ -293,8 +293,12 @@ button { cursor: pointer; }
   fill: none; stroke: var(--faint); stroke-width: 2; stroke-linecap: round; pointer-events: none;
 }
 .search input {
-  width: 100%; padding: 10px 32px 10px 36px; border-radius: 14px;
-  border: 1px solid transparent; background: var(--surface); font-size: 14px;
+  width: 100%; min-height: var(--tap, 44px);
+  padding: 10px 34px 10px 38px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface);
+  /* 16px exactly. iOS zooms the whole page in on focus for anything smaller,
+     and then leaves you zoomed -- on a phone that is a bug, not a detail. */
+  font-size: 16px;
 }
 .search input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
 .search input::-webkit-search-cancel-button { display: none; }
@@ -384,20 +388,20 @@ button { cursor: pointer; }
 main { padding-top: 22px; }
 
 .jumpbar {
-  display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none;
-  margin: 0 -16px 14px; padding: 0 16px 4px; align-items: center;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s-3); margin: 0 0 var(--s-4);
 }
-.jumpbar::-webkit-scrollbar { display: none; }
 .jumpbar__label {
-  flex: none; font-size: 10.5px; font-weight: 750; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--faint); padding-right: 2px;
+  font-size: var(--t-xs); font-weight: 750; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--faint);
 }
-.jump {
-  flex: none; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 580;
-  border: 0; background: var(--surface); color: var(--muted); white-space: nowrap;
+/* The one control left in this bar. */
+.jump--toggle {
+  border: 0; background: none; padding: 4px 0; color: var(--muted);
+  font-size: var(--t-sm); font-weight: 620;
+  text-decoration: underline; text-underline-offset: 3px;
 }
-.jump:hover { color: var(--text); }
-.jump small { opacity: .55; margin-left: 5px; }
+.jump--toggle:hover { color: var(--text); }
 
 .hall { margin-bottom: 28px; scroll-margin-top: 130px; }
 .hall__head {
@@ -582,8 +586,10 @@ main { padding-top: 22px; }
 .field { display: grid; gap: 5px; }
 .field > span { font-size: 12px; font-weight: 620; color: var(--muted); }
 .field input, .field select {
-  padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--border-strong);
-  background: var(--surface-2); font-size: 13.5px; width: 100%;
+  padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--border-strong);
+  background: var(--surface-2); width: 100%;
+  min-height: var(--tap, 44px);
+  font-size: 16px;   /* same reason: no zoom-on-focus */
 }
 .chipset__row { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -1080,4 +1086,35 @@ body[data-booting="1"] .pills { min-height: 32px; }
      its content and pushed itself off the side of the screen. */
   .shell > *, .rail__top, .weekbar, .toolbar, .hero,
   #content, #buildView, #plateView { min-width: 0; max-width: 100%; }
+}
+
+/* ---------- hall picker ---------- */
+
+/* A real <select> under a styled face. The OS picker is faster one-handed than
+   anything custom, and it costs one line instead of a row of pills that
+   scrolled sideways and hid half the halls. */
+.hallpick { position: relative; display: block; }
+.hallpick select {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; background: none; cursor: pointer;
+  font-size: 16px;            /* iOS zooms the page for anything smaller */
+}
+.hallpick__face {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tap, 44px); padding: 0 var(--s-3);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface);
+}
+.hallpick__name {
+  flex: 1; min-width: 0; font-size: var(--t-md); font-weight: 640;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hallpick__count {
+  flex: none; min-width: 26px; padding: 2px 7px; border-radius: 999px;
+  background: var(--tile); color: var(--muted);
+  font-size: var(--t-xs); font-weight: 700; text-align: center;
+}
+.hallpick__face .gi { flex: none; width: 15px; height: 15px; color: var(--faint); }
+.hallpick select:focus-visible + .hallpick__face {
+  outline: 2px solid var(--brand); outline-offset: 2px;
 }

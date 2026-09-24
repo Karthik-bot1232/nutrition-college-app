@@ -452,16 +452,34 @@ function renderMeals() {
   }).join('');
 }
 
+/* One picker, not a row of pills you have to scroll sideways through.
+
+   Four halls in a horizontal scroller cost a full row of the screen and hid
+   whichever ones did not fit. The native control is one tap, shows every option
+   at once, and is the thing a phone is already good at. */
 function renderHalls() {
   const total = state.meta.locations.reduce((n, l) => n + count(state.meal, l.id), 0);
-  const pills = state.meta.locations.map(l => {
+  const options = state.meta.locations.map(l => {
     const n = count(state.meal, l.id);
-    return `<button class="pill" role="tab" data-loc="${l.id}"
-      aria-selected="${l.id === state.location}">${esc(l.name)}<small>${n}</small></button>`;
+    return `<option value="${esc(l.id)}" ${l.id === state.location ? 'selected' : ''}
+      >${esc(l.name)} — ${n} item${n === 1 ? '' : 's'}</option>`;
   });
-  pills.push(`<button class="pill" role="tab" data-loc="all"
-    aria-selected="${state.location === 'all'}">All halls<small>${total}</small></button>`);
-  $('#hallPills').innerHTML = pills.join('');
+  options.push(`<option value="all" ${state.location === 'all' ? 'selected' : ''}
+    >All halls — ${total} items</option>`);
+
+  const current = state.location === 'all' ? 'All halls' : hallName(state.location);
+  const shown = state.location === 'all' ? total : count(state.meal, state.location);
+
+  $('#hallPills').innerHTML = `
+    <label class="hallpick">
+      <span class="sr">Dining hall</span>
+      <select id="hallSelect">${options.join('')}</select>
+      <span class="hallpick__face" aria-hidden="true">
+        <span class="hallpick__name">${esc(current)}</span>
+        <span class="hallpick__count">${shown}</span>
+        <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
+      </span>
+    </label>`;
 }
 
 function renderActiveFilters() {
@@ -505,24 +523,26 @@ function stationKeys(data) {
   return data.locations.flatMap(h => h.stations.map(st => `${h.location_id}|${st.station}`));
 }
 
+/* One quiet line, not a third horizontal scroller.
+
+   This used to be a row of station chips you swiped through, stacked under a
+   week strip and a meal row and a hall row -- four scrollers deep before any
+   food. The stations are collapsible headings a thumb-flick away, so the bar is
+   now just the count and the one control that saves real time on a 23-station
+   lunch. */
 function jumpbar(data) {
   const halls = data.locations;
-  const allCollapsed = stationKeys(data).every(k => state.collapsed.has(k));
-  const toggle = `<button class="jump" data-collapseall="${allCollapsed ? 'open' : 'close'}"
-    >${allCollapsed ? 'Expand all' : 'Collapse all'}</button>`;
+  const keys = stationKeys(data);
+  const allCollapsed = keys.every(k => state.collapsed.has(k));
+  const sections = halls.length > 1
+    ? `${halls.length} halls`
+    : `${halls[0].stations.length} station${halls[0].stations.length === 1 ? '' : 's'}`;
 
-  // Across halls, 57 same-looking station chips help nobody; jump by hall instead.
-  const chips = halls.length > 1
-    ? halls.map(h => `<button class="jump" data-jump="hall-${h.location_id}">${
-        esc(h.location_name)}<small>${h.count}</small></button>`)
-    : halls[0].stations.map(st => `<button class="jump" data-jump="st-${
-        cssId(`${halls[0].location_id}|${st.station}`)}">${esc(st.station)}<small>${
-        st.items.length}</small></button>`);
-
-  if (halls.length === 1 && chips.length < 4) return `<div class="jumpbar">${toggle}</div>`;
-  return `<div class="jumpbar" aria-label="Jump to section">
-    <span class="jumpbar__label">${halls.length > 1 ? 'Halls' : `${chips.length} stations`}</span>
-    ${chips.join('')}${toggle}</div>`;
+  return `<div class="jumpbar">
+    <span class="jumpbar__label">${sections}</span>
+    <button class="jump jump--toggle" data-collapseall="${allCollapsed ? 'open' : 'close'}"
+      >${allCollapsed ? 'Expand all' : 'Collapse all'}</button>
+  </div>`;
 }
 
 /* Cards with the text taken out, shown while a menu is in flight.
@@ -938,7 +958,8 @@ function setTheme(mode) {
 function loadTheme() {
   let saved = null;
   try { saved = localStorage.getItem(THEME_KEY); } catch {}
-  setTheme(saved === 'dark' || saved === 'light' ? saved : 'light');
+  // Dark is the default. The toggle is still there for anyone who wants light.
+  setTheme(saved === 'dark' || saved === 'light' ? saved : 'dark');
 }
 
 function syncInputs() {
@@ -961,13 +982,6 @@ function clearSearch() {
   applyFilters();
 }
 
-function scrollToSection(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const top = el.getBoundingClientRect().top + window.scrollY
-            - $('.appbar').getBoundingClientRect().height - 10;
-  window.scrollTo({ top, behavior: 'smooth' });
-}
 
 /* ------------------------------------------------------------------- plate */
 
@@ -1325,10 +1339,9 @@ function bind() {
     renderMeals(); renderHalls(); render();
   });
 
-  $('#hallPills').addEventListener('click', e => {
-    const b = e.target.closest('[data-loc]');
-    if (!b) return;
-    state.location = b.dataset.loc;
+  $('#hallPills').addEventListener('change', e => {
+    if (e.target.id !== 'hallSelect') return;
+    state.location = e.target.value;
     state.collapsed.clear();
     renderHalls(); render();
   });
@@ -1358,9 +1371,6 @@ function bind() {
       render();
       return;
     }
-    const jump = e.target.closest('[data-jump]');
-    if (jump) { scrollToSection(jump.dataset.jump); return; }
-
     // Toggling in place rather than re-rendering keeps the scroll position,
     // which matters on a 300-item All halls page.
     const collapse = e.target.closest('[data-collapse]');
