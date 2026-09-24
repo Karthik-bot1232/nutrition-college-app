@@ -981,3 +981,103 @@ body[data-booting="1"] .pills { min-height: 32px; }
   .brand { gap: 9px; }
   .brand__mark { width: 25px; height: 25px; }
 }
+
+
+/* ---------- layout ---------- */
+
+/* Phone first: one column, controls at the top, tabs at the bottom. */
+.rail__top { padding: var(--s-3) 0 0; }
+.rail__brandrow { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.rail__actions { display: flex; gap: var(--s-2); }
+.railgroup + .railgroup { margin-top: var(--s-3); }
+.railgroup__label {
+  display: none;              /* on a phone the controls speak for themselves */
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-xs); font-weight: 750; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--faint);
+}
+
+/* Desktop: a rail against the left edge and a working area beside it.
+
+   This is the point the whole thing kept failing on. Everything lived in a
+   940px box centred in the window, so on any real screen it was a ribbon
+   floating in empty space with no structure -- which is the layout every
+   generated app ships and the reason it reads as one. The rail holds what you
+   keep returning to and is anchored to an edge; the food gets the rest and is
+   laid out in columns rather than a single queue. */
+@media (min-width: 1000px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .rail {
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; gap: var(--s-5);
+    padding: var(--s-5) 0 calc(var(--nav-rail, 76px) + var(--s-4));
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+  .rail .wrap { max-width: none; padding: 0 var(--s-5); }
+
+  /* In a 300px rail the two buttons were taking the width that wrapped the
+     school's name onto two lines and the date onto three. They get their own
+     row; the name gets the rail. */
+  .rail__brandrow { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+  .rail__actions { order: -1; justify-content: flex-end; }
+  .rail .brand__sub { white-space: normal; }
+  .rail .toolbar {
+    position: static; padding: 0; background: none; backdrop-filter: none;
+  }
+  .railgroup__label { display: block; }
+  .railgroup + .railgroup { margin-top: var(--s-5); }
+
+  /* Stacked in the rail, these stop being horizontal scrollers. */
+  .segmented { grid-auto-flow: row; grid-auto-columns: auto; }
+  .pills { flex-direction: column; align-items: stretch; overflow: visible; }
+  .pill { justify-content: space-between; }
+  .searchrow { flex-direction: column; align-items: stretch; }
+  .filterbtn { justify-content: center; }
+
+  .work { min-width: 0; padding: var(--s-5) 0 var(--s-7); }
+  .work .wrap { max-width: 1240px; margin-left: 0; padding: 0 var(--s-6); }
+  .weekbar { padding: 0 0 var(--s-5); }
+
+  /* Stations become columns of cards instead of one long queue. */
+  .cards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s-3); }
+
+  /* The rail names the section, so the tab bar joins it rather than floating
+     across the bottom of a desktop window. */
+  .tabbar {
+    position: fixed; left: 0; bottom: 0; width: 300px; right: auto;
+    background: var(--surface); backdrop-filter: none;
+  }
+  .tabbar__inner { max-width: none; padding: var(--s-2) var(--s-4) var(--s-3); }
+  body { padding-bottom: 0; }
+}
+
+/* Past this width the work area stops tracking the window: card widths and line
+   lengths stay chosen rather than stretched. */
+@media (min-width: 1560px) {
+  .work .wrap { padding-left: var(--s-7); }
+}
+
+/* On a phone the rail and the work area are not separate places, so they stop
+   being boxes and their children flow as one column. That restores the reading
+   order the page had before the split: who and when, then where and what. */
+@media (max-width: 999px) {
+  .shell { display: flex; flex-direction: column; }
+  .rail, .work { display: contents; }
+  .rail__top { order: 1; }
+  .weekbar   { order: 2; }
+  .toolbar   { order: 3; }
+  .hero      { order: 4; }
+  #content, #buildView, #plateView { order: 5; }
+
+  /* Flex children default to min-width:auto, so a card refused to shrink below
+     its content and pushed itself off the side of the screen. */
+  .shell > *, .rail__top, .weekbar, .toolbar, .hero,
+  #content, #buildView, #plateView { min-width: 0; max-width: 100%; }
+}
