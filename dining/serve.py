@@ -26,7 +26,16 @@ from .export import _nutrition_suspect
 from .models import NUTRIENT_FIELDS
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
-CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}
+CONTENT_TYPES = {
+    ".html": "text/html",
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".svg": "image/svg+xml",
+    # Browsers ignore a manifest served as anything else, so the app
+    # silently stays un-installable.
+    ".webmanifest": "application/manifest+json",
+    ".json": "application/json",
+}
 
 #: Exactly what `_item_json` reads for a card, rather than `i.*`. `ingredients`
 #: is by far the widest column and no card shows it, so selecting it shipped a
