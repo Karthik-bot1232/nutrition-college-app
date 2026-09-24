@@ -46,6 +46,28 @@
      an actual voice -- and since this app is mostly numbers, the numerals doing
      something other than Helvetica's is most of the character it has. If the
      font never arrives, everything falls back and nothing breaks. */
+  /* A type scale with actual steps in it. The page had nineteen sizes and
+     sixty-one of them between 10px and 14px, which is not a hierarchy -- it is
+     a wall of small text with nothing for the eye to land on. Six sizes, each
+     a clear jump from the last. */
+  --t-hero: 32px;   /* the one number a card is really about */
+  --t-xl:   22px;
+  --t-lg:   17px;
+  --t-md:   15px;   /* body, item names */
+  --t-sm:   13px;
+  --t-xs:   11px;   /* labels and captions, and nothing else */
+
+  /* Spacing on a 4px ramp. Nineteen ad-hoc values meant every gap was roughly
+     every other gap, so nothing looked deliberately grouped or deliberately
+     apart. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
   --r-sm: 10px;
@@ -376,7 +398,7 @@ main { padding-top: 22px; }
 .hall__head h2 { margin: 0; font-size: 17px; font-weight: 720; letter-spacing: -.022em; }
 .hall__head span { font-size: 12px; color: var(--faint); }
 
-.station { margin-bottom: 20px; scroll-margin-top: 130px; }
+.station { margin-bottom: var(--s-6); scroll-margin-top: 130px; }
 .station__head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; width: 100%; margin: 0 0 10px; padding: 4px 4px;
@@ -396,12 +418,12 @@ main { padding-top: 22px; }
 }
 .station__head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
 
-.cards { display: grid; gap: 9px; }
+.cards { display: grid; gap: var(--s-2); }
 
 /* ---------- item card ---------- */
 
 .card {
-  padding: 14px 14px 13px; border-radius: var(--r-xl);
+  padding: var(--s-4); border-radius: var(--r-xl);
   background: var(--surface); border: 1px solid var(--border);
   box-shadow: var(--shadow);
   cursor: pointer; transition: transform .12s, box-shadow .12s;
@@ -422,26 +444,50 @@ main { padding-top: 22px; }
    three characters. */
 /* Tiles cap out rather than stretching: at full width on a desktop card each
    one became a 200px box around a 17px icon, which reads as a mistake. */
+/* The one thing on the card with real size. 32px against the macros' 13px is a
+   jump you read before you read anything, which is the whole point -- at four
+   identical tiles there was nothing to look at first. */
+.lead {
+  display: flex; align-items: baseline; gap: var(--s-2); margin-top: var(--s-3);
+}
+.lead__ic {
+  width: 20px; height: 20px; flex: none; fill: none; stroke: var(--cal-ink);
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; align-self: center;
+}
+.lead b {
+  font-size: var(--t-hero); font-weight: 700; letter-spacing: -.04em;
+  line-height: .95; font-variant-numeric: tabular-nums;
+}
+.lead span {
+  font-size: var(--t-xs); font-weight: 650; color: var(--faint);
+  text-transform: uppercase; letter-spacing: .1em;
+}
+
 .stats {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 132px));
-  justify-content: start; gap: 7px; margin-top: 11px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2); margin-top: var(--s-3);
 }
 .stat {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 9px 6px 8px; border-radius: var(--r-md); background: var(--tile);
-  text-align: center;
+  display: flex; align-items: baseline; justify-content: center; gap: 5px;
+  padding: var(--s-2) 6px; border-radius: var(--r-sm); background: var(--tile);
+  min-width: 0;
 }
-.stat__ic { width: 17px; height: 17px; fill: none; stroke-width: 1.8;
-            stroke-linecap: round; stroke-linejoin: round; margin-bottom: 3px; }
-.stat b { font-size: 15px; font-weight: 720; letter-spacing: -.02em;
-          font-variant-numeric: tabular-nums; line-height: 1.1; }
-.stat span { font-size: 10px; font-weight: 600; color: var(--faint); letter-spacing: .01em; }
+.stat b { font-size: var(--t-sm); font-weight: 700; letter-spacing: -.02em;
+          font-variant-numeric: tabular-nums; }
+.stat span { font-size: var(--t-xs); font-weight: 600; color: var(--faint);
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Colour rides the figure now that the glyph is gone. The word beside it is
+   still what carries the meaning. */
+.stat--carb b { color: var(--carbs-ink); }
+.stat--protein b { color: var(--protein-ink); }
+.stat--fat b { color: var(--fat-ink); }
 .stat--cal .stat__ic { stroke: var(--cal-ink); }
 .stat--carb .stat__ic { stroke: var(--carbs-ink); }
 .stat--protein .stat__ic { stroke: var(--protein-ink); }
 .stat--fat .stat__ic { stroke: var(--fat-ink); }
 
-.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+                margin-top: var(--s-3); }
 .badge {
   font-size: 11px; font-weight: 660; padding: 3px 9px; border-radius: 999px;
   white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
