@@ -3,7 +3,17 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const api = (path, params) =>
-  fetch(path + (params ? '?' + params : '')).then(r => r.json());
+  fetch(path + (params ? '?' + params : '')).then(r => {
+    // Two signals, because neither is sufficient alone: the worker stamps
+    // anything it served from its cache, and a request that never reached the
+    // network at all is the other way to find out.
+    if (r.headers.get('X-From-Cache') === '1') markOffline(true);
+    else if (navigator.onLine) markOffline(false);
+    return r.json();
+  }).catch(err => {
+    markOffline(true);
+    throw err;
+  });
 
 const NUTRIENTS = [
   ['total_fat_g', 'Total fat', 'g'], ['saturated_fat_g', 'Saturated fat', 'g'],
@@ -573,7 +583,20 @@ async function loadMenu() {
     $('#content').setAttribute('aria-busy', 'true');
   });
   const p = new URLSearchParams({ date: state.date, meal: state.meal, location: state.location });
-  const data = await api('/api/menu', p.toString());
+  let data;
+  try {
+    data = await api('/api/menu', p.toString());
+  } catch {
+    // Offline and this particular day/meal/hall was never visited, so there is
+    // nothing saved to fall back to. Say that, rather than leaving a skeleton
+    // running forever or throwing into the console.
+    if (!done()) return;
+    $('#content').removeAttribute('aria-busy');
+    $('#content').innerHTML = emptyState('Not saved for offline',
+      `You have not opened this ${esc(state.meal.toLowerCase())} menu while connected, so there
+       is no copy on the phone. Menus you have viewed before stay available offline.`);
+    return;
+  }
   // A slower earlier request must not paint over a newer one.
   if (!done()) return;
   $('#content').removeAttribute('aria-busy');
@@ -612,7 +635,17 @@ async function loadSearch() {
     $('#content').innerHTML = skeleton(4);
     $('#content').setAttribute('aria-busy', 'true');
   });
-  const data = await api('/api/search', searchParams());
+  let data;
+  try {
+    data = await api('/api/search', searchParams());
+  } catch {
+    if (!done()) return;
+    $('#content').removeAttribute('aria-busy');
+    $('#content').innerHTML = emptyState('Search needs a connection',
+      'Searching asks the server each time, so it cannot run offline. Browsing menus you have '
+      + 'already opened still works.');
+    return;
+  }
   if (!done()) return;
   $('#content').removeAttribute('aria-busy');
   const main = $('#content');
@@ -1597,6 +1630,38 @@ async function init() {
   renderDates(); renderMeals(); renderHalls(); bind(); loadPlate();
   renderActiveFilters(); render();
   setTab(location.hash.replace('#', '') || 'browse', true);
+}
+
+/* -------------------------------------------------------------- offline */
+
+if ('serviceWorker' in navigator) {
+  // After load, so registering never competes with the first paint.
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // No worker means no offline support, which is a degraded app, not a
+      // broken one. Nothing to tell the user about.
+    });
+  });
+}
+
+/** True once any response this session came out of the cache rather than the
+    network -- i.e. the menu on screen may be from a previous visit. */
+let servingStale = false;
+
+// The browser's own events are the fastest signal, and the only one available
+// before any request has been made.
+addEventListener('online', () => markOffline(false));
+addEventListener('offline', () => markOffline(true));
+// Events only fire on a change, so a page opened while already offline needs
+// asking directly.
+addEventListener('DOMContentLoaded', () => { if (!navigator.onLine) markOffline(true); });
+
+function markOffline(on) {
+  if (servingStale === on) return;
+  servingStale = on;
+  const bar = $('#offline');
+  bar.hidden = !on;
+  if (on) announce('Offline. Showing the menu from your last visit.');
 }
 
 init();

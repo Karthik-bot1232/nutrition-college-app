@@ -356,6 +356,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        # The service worker is the only cache that should hold menu data.
+        # Left cacheable, the browser's own HTTP cache answers first -- even
+        # with the network off -- so the app cannot tell a live menu from a
+        # remembered one, and a stale menu is worse than an honest gap.
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
