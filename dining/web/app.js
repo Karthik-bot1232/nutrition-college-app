@@ -30,16 +30,6 @@ const DIETS = ['vegan', 'vegetarian', 'halal'];
 const SCOPE_LABEL = { meal: 'This meal only', day: 'This whole day', all: 'Every stored day' };
 const SORT_LABEL = { name: 'Name', protein: 'Protein, high to low', calories: 'Calories, low to high' };
 
-/** An SVG progress ring. `pct` is 0-1; the arc starts at twelve o'clock. */
-function ring(pct, cls, size, label) {
-  const r = 46, c = 2 * Math.PI * r;
-  const off = c * (1 - Math.max(0, Math.min(1, pct)));
-  return `<svg class="ring ring--${cls}" viewBox="0 0 110 110" style="width:${size}px;height:${size}px" aria-hidden="true">
-    <circle class="ring__bg" cx="55" cy="55" r="${r}"/>
-    <circle class="ring__fg" cx="55" cy="55" r="${r}"
-      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>
-  </svg>${label || ''}`;
-}
 
 const state = {
   meta: null, date: null, meal: null, location: null, weekStart: null, tab: 'browse',
@@ -143,7 +133,7 @@ function buildPool(menu) {
       if (!i.allergen_data_published) return;   // unknown is not the same as free of it
       if ([...state.without].some(a => i.allergens.includes(a))) return;
     }
-    out.push({ ...i, _station: `${hall.location_name} · ${st.station}`,
+    out.push({ ...i, _station: `${hall.location_name} · ${st.station}`, _stationName: st.station,
                _hall: hall.location_name, _garnish: isGarnish(i) });
   })));
   return out;
@@ -326,8 +316,8 @@ const STATS = [
    value and word, so the hue is reinforcement and never the only thing saying
    which macro it is. */
 const MACROS = [
-  ['carbs',   'Carbs',   'total_carbs_g'],
   ['protein', 'Protein', 'protein_g'],
+  ['carbs',   'Carbs',   'total_carbs_g'],
   ['fat',     'Fat',     'total_fat_g'],
 ];
 
@@ -474,7 +464,8 @@ function renderHalls() {
 
   const opt = (id, label, n) => `<button class="row" data-loc="${esc(id)}"
       aria-pressed="${id === state.location}">
-      <span class="row__id"><b>${esc(label)}</b><span>${n} item${n === 1 ? '' : 's'}</span></span>
+      <span class="row__id"><b>${esc(label)}</b><span>${n ? `${n} at ${esc(state.meal.toLowerCase())}`
+        : `No ${esc(state.meal.toLowerCase())}`}</span></span>
       ${id === state.location
         ? '<svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>' : ''}
     </button>`;
@@ -504,9 +495,9 @@ function renderActiveFilters() {
 
 /* ------------------------------------------------------------------- views */
 
-const emptyState = (title, body, action = '') => `
+const emptyState = (title, body, action = '', icon = 'search') => `
   <div class="empty">
-    <span class="empty__icon"><svg class="gi" aria-hidden="true"><use href="#ic-search"/></svg></span>
+    <span class="empty__icon"><svg class="gi" aria-hidden="true"><use href="#ic-${icon}"/></svg></span>
     <h2>${esc(title)}</h2>
     <p>${body}</p>
     ${action}
@@ -618,9 +609,10 @@ async function loadMenu() {
       .map(st => stationSection(st, `${hall.location_id}|${st.station}`)).join('');
     if (!inner) return '';
     return many
-      ? `<section class="hall" id="hall-${hall.location_id}"><div class="hall__head">
-           <h2>${esc(hall.location_name)}</h2><span>${hall.count} items</span>
-         </div>${inner}</section>`
+      ? `<section class="hall" id="hall-${hall.location_id}">
+           <div class="hall__head"><h2>${esc(hall.location_name)}</h2>
+             <span>${hall.count} item${hall.count === 1 ? '' : 's'}</span></div>
+           ${inner}</section>`
       : inner;
   }).join('');
 
@@ -654,9 +646,14 @@ async function loadSearch() {
   let items = data.items;
   if (state.hideImplausible) items = items.filter(i => !i.label_implausible);
   if (!items.length) {
+    const wider = { meal: ['day', 'Search all of today'], day: ['all', 'Search every day'] }[state.scope];
     main.innerHTML = emptyState('Nothing matches',
-      `Nothing in ${esc(scopeText())} matches these filters. Try widening
-       <em>Look across</em>, or removing a chip above.`);
+      `Nothing in ${esc(scopeText())} matches ${state.q ? `“${esc(state.q)}”` : 'these filters'}.`,
+      `<div class="empty__actions">
+        ${wider ? `<button class="btn btn--primary" data-widen="${wider[0]}">${wider[1]}</button>` : ''}
+        <button class="btn btn--ghost" data-reset>${activeFilters().some(f => !f.isSearch)
+          ? 'Clear search and filters' : 'Clear search'}</button>
+      </div>`);
     return;
   }
 
@@ -666,11 +663,12 @@ async function loadSearch() {
        Turn on <em>Also show items with no allergen data</em> to see them.</span></div>` : '';
 
   main.innerHTML = notice +
-    `<p class="resulthead">
-       <span><strong>${items.length}</strong> item${items.length === 1 ? '' : 's'} in ${esc(scopeText())}</span>
-       ${data.count > items.length ? `<span>first ${items.length} of ${data.count}</span>` : ''}
+    `<p class="resultline">
+       <span><strong>${items.length}</strong> result${items.length === 1 ? '' : 's'} in ${esc(scopeText())}</span>
+       ${data.count > items.length ? `<span>showing ${items.length} of ${data.count}</span>` : ''}
      </p>
-     <div class="cards">${items.map(i => card(i, placeSummary(i))).join('')}</div>`;
+     <ul class="cards">${items.map(i => card(i, placeSummary(i))).join('')}</ul>`;
+  announce(`${items.length} result${items.length === 1 ? '' : 's'}`);
 }
 
 function placeSummary(item) {
@@ -720,7 +718,7 @@ function setTab(tab, fromHash = false) {
   $('#plateView').hidden = tab !== 'plate';
   // Search and filters act on the browse list; on the other tabs they would
   // look live and do nothing.
-  $('.controls').hidden = tab !== 'browse';
+  document.body.dataset.view = tab;
   $('#dateNav').hidden = false;
   $('#hero').hidden = tab !== 'browse';
   if (tab === 'build') {
@@ -757,14 +755,16 @@ function goalBar(label, value, target, unit, cls, ceiling = false) {
 
 function planCard(plan, index, goal) {
   const t = plan.totals;
+  const many = state.location === 'all';
   const rows = plan.items.map(i => `
-    <li class="row" data-id="${esc(i.recipe_id)}">
-      <div class="row__id">
+    <li><button class="row" data-detail="${esc(i.recipe_id)}">
+      <span class="row__id">
         <b>${esc(i.name)}</b>
-        <span>${esc(i.serving_size || i.portion || '')} · ${esc(i._station)}</span>
-      </div>
-      <span class="row__cal">${Math.round(i.calories)}</span>
-    </li>`).join('');
+        <span>${esc([i.serving_size || i.portion, many ? i._station : i._stationName]
+          .filter(Boolean).join(' · '))}</span>
+      </span>
+      <span class="row__cal">${Math.round(i.calories)}<small> cal</small></span>
+    </button></li>`).join('');
 
   return `<article class="panel">
     <div class="panel__row">
@@ -784,7 +784,6 @@ function planCard(plan, index, goal) {
 
 function renderBuild() {
   const goal = activeGoal();
-  const where = state.location === 'all' ? 'every hall' : hallName(state.location);
   const constraints = [
     ...[...state.diets].map(titleCase),
     ...[...state.without].map(a => `No ${titleCase(a)}`),
@@ -795,9 +794,7 @@ function renderBuild() {
       <div class="panel__row">
         <div>
           <h2>Build a meal</h2>
-          <p>${esc(state.meal)} at ${esc(where)} · ${esc(
-            new Date(state.date + 'T12:00:00').toLocaleDateString(undefined,
-              { weekday: 'long', month: 'short', day: 'numeric' }))}</p>
+          <p>${esc(state.meal)} · ${esc(shortDay(state.date))}</p>
         </div>
         <button class="btn btn--ghost btn--sm" id="editGoals">
           <svg class="gi" aria-hidden="true"><use href="#ic-target"/></svg>
@@ -812,26 +809,29 @@ function renderBuild() {
       ${constraints.length
         ? `<p class="hint">Only using: ${esc(constraints.join(' · '))}</p>` : ''}
       ${goal.isDefault
-        ? `<p class="hint">Using a default 700 cal / 35g protein. Tap <b>Targets</b> to change it.</p>` : ''}
+        ? `<p class="hint">These are defaults. Tap <b>Set targets</b> to use your own.</p>` : ''}
       <button class="btn btn--primary btn--block" id="runBuild">
         ${state.plans ? 'Build again' : 'Build my meal'}</button>
     </div>`;
 
   let body = '';
   if (state.planning) {
-    body = `<div class="empty"><h2>Working…</h2><p>Trying combinations against your targets.</p></div>`;
+    body = `<div class="empty" aria-busy="true"><h2>Working…</h2><p>Trying combinations against your targets.</p></div>`;
+  } else if (state.planError) {
+    body = emptyState('Needs a connection',
+      `Building fetches ${esc(state.meal.toLowerCase())} for this day, and there is no saved copy
+       of it on the phone.`, `<button class="btn btn--ghost" id="retryBuild">Try again</button>`, 'warn');
   } else if (state.plans && !state.plans.length) {
     body = emptyState('No combination fits',
       `Nothing on this menu can be combined into ${goal.calories} cal with ${goal.protein}g of
        protein under the filters you have set. Try raising the calorie target, lowering the
-       protein floor, or switching to <em>All halls</em>.`);
+       protein floor, or switching to <em>All halls</em>.`, '', 'target');
   } else if (state.plans) {
     body = `<div class="plans">${state.plans.map((p, i) => planCard(p, i, goal)).join('')}</div>`;
   } else {
-    body = `<div class="empty"><h2>Ready when you are</h2>
-      <p>Pick your targets, then build. Suggestions come from what is actually on
-         ${esc(state.meal.toLowerCase())} today, and respect the diet and allergen
-         filters you set under Browse.</p></div>`;
+    body = emptyState('Ready when you are',
+      `Suggestions come from what is actually on ${esc(state.meal.toLowerCase())} this day, and
+       respect the diet and allergen filters you set under Browse.`, '', 'build');
   }
   $('#buildView').innerHTML = head + body;
 }
@@ -840,8 +840,11 @@ async function runBuild() {
   state.planning = true; renderBuild();
   // Menu for the current day/meal/hall, fetched fresh so Build does not depend
   // on whether Browse happens to be showing a search right now.
+  state.planError = false;
   const p = new URLSearchParams({ date: state.date, meal: state.meal, location: state.location });
-  const menu = await api('/api/menu', p.toString());
+  let menu;
+  try { menu = await api('/api/menu', p.toString()); }
+  catch { state.planning = false; state.plans = null; state.planError = true; renderBuild(); return; }
   const pool = buildPool(menu);
   state.plans = buildPlans(pool, activeGoal());
   state.plans.forEach(pl => pl.items.forEach(i => state.items.set(i.recipe_id, i)));
@@ -850,6 +853,15 @@ async function runBuild() {
 }
 
 /* -------------------------------------------------------------- plate view */
+
+/** "Thu, Sep 24" -- short enough to sit on one line under a heading. */
+const shortDay = date => new Date(date + 'T12:00:00').toLocaleDateString(undefined,
+  { weekday: 'short', month: 'short', day: 'numeric' });
+
+function focusMeal(meal) {
+  const m = CSS.escape(meal);
+  $(`#plateView [data-meal-toggle="${m}"], #plateView [data-meal-browse="${m}"]`)?.focus();
+}
 
 /** One meal as a collapsible row: the summary is always visible, the items
     only when you open it.
@@ -865,24 +877,33 @@ function mealSection(meal) {
   const open = state.openMeals.has(meal);
   const flagged = rows.filter(i => i.implausible).length;
 
-  const summary = rows.length
-    ? `${Math.round(t.cal).toLocaleString()} cal · ${Math.round(t.p)}g protein`
-    : 'Nothing added';
+  if (!rows.length) {
+    // An empty meal is a way in, not a dead row: it takes you to that menu.
+    const served = state.meta.locations.some(l => count(meal, l.id) > 0);
+    return `<section class="meal meal--empty">
+      <button class="meal__head" data-meal-browse="${esc(meal)}" ${served ? '' : 'disabled'}>
+        <span class="meal__name">${esc(meal)}</span>
+        <span class="meal__sum">${served ? 'Add from the menu' : 'Not served this day'}</span>
+        ${served ? '<svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg>' : ''}
+      </button>
+    </section>`;
+  }
 
-  return `<section class="meal ${rows.length ? '' : 'meal--empty'}">
-    <button class="meal__head" data-meal-toggle="${esc(meal)}" aria-expanded="${open}"
-            ${rows.length ? '' : 'disabled'}>
+  const summary = `${Math.round(t.cal).toLocaleString()} cal · ${Math.round(t.p)}g protein`;
+
+  return `<section class="meal">
+    <button class="meal__head" data-meal-toggle="${esc(meal)}" aria-expanded="${open}">
       <span class="meal__name">${esc(meal)}</span>
       <span class="meal__sum">${summary}</span>
-      ${rows.length ? `<span class="meal__count">${rows.length}</span>
-        <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>` : ''}
+      <span class="meal__count" aria-label="${rows.length} item${rows.length === 1 ? '' : 's'}">${rows.length}</span>
+      <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
     </button>
 
-    ${open && rows.length ? `<div class="meal__body">
+    ${open ? `<div class="meal__body">
       <ul class="rows">${rows.map(i => `
         <li class="row">
           <div class="row__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}</span></div>
-          <span class="row__cal">${Math.round(i.calories)}</span>
+          <span class="row__cal">${Math.round(i.calories)}<small> cal</small></span>
           <button class="remove" data-remove="${esc(i.recipe_id)}" data-from="${esc(meal)}"
                   aria-label="Remove ${esc(i.name)}"><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
         </li>`).join('')}</ul>
@@ -898,7 +919,10 @@ function mealSection(meal) {
         flagged === 1 ? ' has a label that fails' : 's have labels that fail'} the plausibility
         check, so this meal's total is probably too high.</span></div>` : ''}
 
-      <button class="btn btn--ghost btn--block" data-clear-meal="${esc(meal)}">Clear ${esc(meal.toLowerCase())}</button>
+      <div class="meal__foot">
+        <button class="linkbtn" data-meal-browse="${esc(meal)}">Add more</button>
+        <button class="linkbtn linkbtn--quiet" data-clear-meal="${esc(meal)}">Clear ${esc(meal.toLowerCase())}</button>
+      </div>
     </div>` : ''}
   </section>`;
 }
@@ -906,8 +930,7 @@ function mealSection(meal) {
 function renderPlateView() {
   const day = totals();
   const n = allPlated().length;
-  const dayLabel = new Date(state.date + 'T12:00:00').toLocaleDateString(undefined,
-    { weekday: 'long', month: 'short', day: 'numeric' });
+  const dayLabel = shortDay(state.date);
 
   if (!n) {
     $('#plateView').innerHTML = `
@@ -917,10 +940,9 @@ function renderPlateView() {
           <button class="btn btn--ghost btn--sm" id="editGoals2">
             <svg class="gi" aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
         </div>
+        <p class="hint">Tap + on anything in Browse, or let Build put a meal together.
+          Each meal is tracked on its own.</p>
       </div>
-      ${emptyState('Your day is empty',
-        `Pick a meal under Browse and tap + on what you ate, or let Build put one
-         together. Each meal is tracked separately.`)}
       <div class="meals">${state.meta.meals.map(mealSection).join('')}</div>`;
     return;
   }
@@ -931,14 +953,17 @@ function renderPlateView() {
     <div class="panel">
       <div class="panel__row">
         <div><h2>${Math.round(day.cal).toLocaleString()} cal</h2>
-          <p>${n} item${n === 1 ? '' : 's'} across the day · ${esc(dayLabel)}</p></div>
+          <p>${n} item${n === 1 ? '' : 's'} · ${esc(dayLabel)}</p></div>
         <button class="btn btn--ghost btn--sm" id="editGoals2">
           <svg class="gi" aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
       </div>
       <div class="daymacros">
-        <div class="daymacro daymacro--p"><b>${Math.round(day.p)}g</b><span>Protein</span></div>
-        <div class="daymacro daymacro--c"><b>${Math.round(day.c)}g</b><span>Carbs</span></div>
-        <div class="daymacro daymacro--f"><b>${Math.round(day.f)}g</b><span>Fat</span></div>
+        <div class="daymacro macro--protein"><span class="macro__dot" aria-hidden="true"></span>
+          <b>${Math.round(day.p)}g</b><span>Protein</span></div>
+        <div class="daymacro macro--carbs"><span class="macro__dot" aria-hidden="true"></span>
+          <b>${Math.round(day.c)}g</b><span>Carbs</span></div>
+        <div class="daymacro macro--fat"><span class="macro__dot" aria-hidden="true"></span>
+          <b>${Math.round(day.f)}g</b><span>Fat</span></div>
       </div>
     </div>
     <div class="meals">${state.meta.meals.map(mealSection).join('')}</div>`;
@@ -966,6 +991,13 @@ function selectDate(date) {
   state.date = date;
   state.collapsed.clear();
   renderDates(); renderMeals(); renderHalls(); loadPlate(); render();
+  rebuildIfShowing();
+}
+
+/** Plans were built for one day and meal; a different one needs new plans. */
+function rebuildIfShowing() {
+  state.plans = null;
+  if (state.tab === 'build') runBuild();
 }
 
 function selectMeal(meal) {
@@ -973,6 +1005,7 @@ function selectMeal(meal) {
   state.meal = meal;
   state.collapsed.clear();
   renderMeals(); renderHalls(); render();
+  rebuildIfShowing();
 }
 
 /* ------------------------------------------------------------- sheets */
@@ -1110,37 +1143,30 @@ function totals(meal) {
    It is a yardstick, not a goal we invented for the user. */
 const CAL_REFERENCE = 2000;
 
+/* The meal you are building, above the menu you are building it from.
+
+   The tab bar already carries the day's total, so this is the other number: how
+   far into this meal's target you are, which is the one that changes what you
+   pick next. One line and a bar; tapping it opens the plate. Nothing at all
+   when the meal is empty. */
 function renderHero() {
-  // Scoped to the meal on screen: you are looking at breakfast, so this is
-  // what breakfast currently adds up to.
-  const t = totals(state.meal), n = plateFor().length;
-
-  // An empty plate used to occupy a ring, a headline, a paragraph and three
-  // empty macro tiles -- most of a phone screen of nothing, in front of the
-  // food, every time the page loaded. Empty is now one line.
-  // Nothing at all when the plate is empty. There is a Plate tab carrying a
-  // count and a + on every card; a banner explaining both, above the food, on
-  // every single load, was the app talking about itself.
+  const n = plateFor().length;
   if (!n) { $('#hero').innerHTML = ''; return; }
-
-  const macro = (cls, label, grams) =>
-    `<div class="pmacro pmacro--${cls}"><b>${Math.round(grams)}g</b><span>${label}</span></div>`;
-
+  const t = totals(state.meal), goal = activeGoal();
+  const pct = Math.min(t.cal / goal.calories, 1);
+  const over = t.cal > goal.calories;
   $('#hero').innerHTML = `
-    <div class="plateline">
-      <div class="plateline__ring">
-        ${ring(t.cal / CAL_REFERENCE, 'cal', 54)}
-        <div class="plateline__center"><b>${Math.round(t.cal).toLocaleString()}</b></div>
-      </div>
-      <div class="plateline__text">
-        <h2>${Math.round(t.cal).toLocaleString()} cal</h2>
-        <p>${n} item${n === 1 ? '' : 's'} · ${Math.round(t.cal / CAL_REFERENCE * 100)}% of 2,000</p>
-      </div>
-      <div class="plateline__macros">
-        ${macro('p', 'Protein', t.p)}${macro('c', 'Carbs', t.c)}${macro('f', 'Fat', t.f)}
-      </div>
-      <button class="linkbtn" id="plateClear">Clear</button>
-    </div>`;
+    <button class="mealstrip" data-tab-go="plate" data-state="${over ? 'over' : 'ok'}">
+      <span class="mealstrip__row">
+        <span class="mealstrip__meal">${esc(state.meal)} plate</span>
+        <span class="mealstrip__cal"><b>${Math.round(t.cal).toLocaleString()}</b>
+          of ${goal.calories.toLocaleString()} cal</span>
+        <svg class="gi" aria-hidden="true"><use href="#ic-right"/></svg>
+      </span>
+      <span class="mealstrip__track" aria-hidden="true">
+        <span class="mealstrip__fill" style="width:${(pct * 100).toFixed(1)}%"></span></span>
+      <span class="sr">${n} item${n === 1 ? '' : 's'}, ${Math.round(t.p)} grams protein. Open plate.</span>
+    </button>`;
 }
 
 function renderPlate() {
@@ -1199,49 +1225,68 @@ function togglePlate(recipeId, meal = state.meal) {
 
 async function openStats() {
   showSheetLoading('About this data');
-  const d = await api('/api/stats');
-  const pct = n => `${(n / d.recipes * 100).toFixed(1)}%`;
-  const fetched = d.last_fetched
-    ? new Date(d.last_fetched).toLocaleString(undefined,
-        { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : 'unknown';
+  let d;
+  try { d = await api('/api/stats'); }
+  catch {
+    showSheet(sheetHead('About this data') + `<div class="sheet__content">
+      <p class="muted">This needs a connection.</p></div>`);
+    return;
+  }
+  const pct = x => {
+    const v = x / d.recipes * 100;
+    return v > 0 && v < 1 ? '<1%' : `${v.toFixed(0)}%`;
+  };
+  const updated = d.last_fetched
+    ? new Date(d.last_fetched).toLocaleDateString(undefined,
+        { weekday: 'short', month: 'short', day: 'numeric' })
+    : null;
+
+  const row = (label, value, note) => `<tr><th scope="row">${label}</th>
+    <td>${value}${note ? ` <span class="none">${note}</span>` : ''}</td></tr>`;
 
   const byHall = {};
-  d.per_meal.forEach(r => (byHall[r.location_name] ||= []).push(r));
+  d.per_meal.forEach(r => (byHall[r.location_name] ||= {})[r.meal] = r.n);
+  const meals = state.meta.meals;
 
   showSheet(`
-    <div class="sheet__head">
-      <div><h2>About this data</h2><p>Scraped from the published menus, not live</p></div>
-      <button class="sheet__close" data-close><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
-    </div>
-    <div class="targets">
-      <div class="target"><b>${d.days}</b><span>days</span></div>
-      <div class="target"><b>${d.recipes.toLocaleString()}</b><span>recipes</span></div>
-      <div class="target"><b>${d.menu_rows.toLocaleString()}</b><span>menu rows</span></div>
-    </div>
-    <p class="hint">Covering ${d.first_date} to ${d.last_date}. Labels last fetched ${esc(fetched)} —
-      run <code>python3 -m dining.refresh</code> to update.</p>
+    ${sheetHead('About this data', 'Where these numbers come from')}
+    <div class="sheet__content">
+      <p class="muted">Menus and nutrition labels are copied from the university's published
+        dining site${updated ? `, most recently on ${esc(updated)}` : ''}. They refresh every
+        morning. What the hall actually serves can differ from what it posted.</p>
 
-    <h3>What the source did not publish</h3>
-    <table class="nutrients"><tbody>
-      <tr><td>No allergen data</td><td>${d.without_allergen_data} <span class="none">(${pct(d.without_allergen_data)})</span></td></tr>
-      <tr><td>No nutrition at all</td><td>${d.without_nutrition} <span class="none">(${pct(d.without_nutrition)})</span></td></tr>
-    </tbody></table>
-    <p class="hint">An item with no allergen data is not a claim that it is free of anything.</p>
+      <div class="targets">
+        <div class="target"><b>${d.days}</b><span>days of menus</span></div>
+        <div class="target"><b>${d.recipes.toLocaleString()}</b><span>recipes</span></div>
+      </div>
+      <p class="hint">${esc(shortDate(d.first_date))} to ${esc(shortDate(d.last_date))}</p>
 
-    <h3>Labels that fail a check</h3>
-    <table class="nutrients"><tbody>
-      <tr><td>Reads as a batch, not a serving</td><td>${d.label_implausible} <span class="none">(${pct(d.label_implausible)})</span></td></tr>
-      <tr><td>Macros do not match calories</td><td>${d.nutrition_suspect} <span class="none">(${pct(d.nutrition_suspect)})</span></td></tr>
-    </tbody></table>
-    <p class="hint">Flagged items carry a <em>check label</em> badge and are pushed to the
-      bottom of a protein sort. Their published numbers are still shown unchanged.</p>
+      <h3 class="sheet__h3">What the halls did not publish</h3>
+      <table class="nutrients"><tbody>
+        ${row('No allergen information', d.without_allergen_data.toLocaleString(), pct(d.without_allergen_data))}
+        ${row('No nutrition label', d.without_nutrition.toLocaleString(), pct(d.without_nutrition))}
+      </tbody></table>
+      <p class="hint">When a hall publishes no allergen information, the app says so rather than
+        showing the item as allergen-free.</p>
 
-    <h3>Menu rows per hall</h3>
-    <table class="nutrients"><tbody>
-      ${Object.entries(byHall).map(([hall, rows]) => `<tr><td>${esc(hall)}</td>
-        <td>${rows.map(r => `${r.meal.slice(0, 1)} ${r.n}`).join(' · ')}</td></tr>`).join('')}
-    </tbody></table>`);
+      <h3 class="sheet__h3">Labels that look wrong</h3>
+      <table class="nutrients"><tbody>
+        ${row('Whole batch listed as one serving', d.label_implausible, pct(d.label_implausible))}
+        ${row('Macros do not match calories', d.nutrition_suspect, pct(d.nutrition_suspect))}
+      </tbody></table>
+      <p class="hint">These items carry a <b>Check label</b> tag and sort last by protein. Their
+        numbers are shown exactly as published.</p>
+
+      <h3 class="sheet__h3">Items per hall</h3>
+      <table class="nutrients nutrients--grid">
+        <thead><tr><th scope="col">Hall</th>${meals.map(mm =>
+          `<th scope="col">${esc(mm)}</th>`).join('')}</tr></thead>
+        <tbody>${Object.entries(byHall).map(([hall, per]) => `<tr>
+          <th scope="row">${esc(hall)}</th>
+          ${meals.map(mm => `<td>${per[mm] ? per[mm].toLocaleString() : '<span class="none">—</span>'}</td>`).join('')}
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`);
 }
 
 /* ------------------------------------------------------------------- sheet */
@@ -1258,88 +1303,168 @@ function showSheet(html) {
     Both of these fetch before they can render, and on a remote database that
     is a few hundred milliseconds of the button appearing to do nothing. */
 function showSheetLoading(title) {
-  showSheet(`
-    <div class="sheet__grip" aria-hidden="true"></div>
-    <div class="sheet__head">
-      <div><h2>${esc(title)}</h2></div>
-      <button class="iconbtn" data-close aria-label="Close">
-        <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
-    </div>
+  showSheet(`${sheetHead(title)}
     <div class="sheet__content" aria-busy="true">
       <span class="sk__line sk__line--name"></span>
       <span class="sk__line sk__line--sub"></span>
       <span class="sk__block"></span>
+      <span class="sk__block"></span>
     </div>`);
+}
+
+/* ------------------------------------------------------------ detail sheet */
+
+/** Rows nested under another on a printed label. Indenting them is what makes
+    "Saturated fat 3.6g" read as part of the fat, not a fifth macro. */
+const LABEL_DEPTH = {
+  saturated_fat_g: 1, trans_fat_g: 1,
+  dietary_fiber_g: 1, soluble_fiber_g: 2, insoluble_fiber_g: 2,
+  total_sugars_g: 1, added_sugars_g: 2,
+};
+/** The rows a printed label sets in bold. */
+const LABEL_BOLD = new Set(['total_fat_g', 'cholesterol_mg', 'sodium_mg',
+                            'total_carbs_g', 'protein_g']);
+
+/** A label figure: whole milligrams, grams to one place, and "0g" rather than
+    "0.0g" -- a trailing zero is precision the source never had. */
+function labelValue(v, unit) {
+  if (v == null) return null;
+  if (unit !== 'g') return `${Math.round(v).toLocaleString()}${unit}`;
+  const r = Math.round(v * 10) / 10;
+  return `${Number.isInteger(r) ? r : r.toFixed(1)}${unit}`;
+}
+
+const shortDate = iso => parseDay(iso).toLocaleDateString(undefined,
+  { weekday: 'short', month: 'short', day: 'numeric' });
+
+function sheetHead(title, subtitle) {
+  return `
+    <div class="sheet__grip" aria-hidden="true"></div>
+    <div class="sheet__head">
+      <div class="sheet__titles"><h2 id="sheetTitle">${esc(title)}</h2>
+        ${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div>
+      <button class="iconbtn" data-close aria-label="Close">
+        <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
+    </div>`;
+}
+
+function addButton(recipeId, name, on) {
+  const meal = esc(state.meal.toLowerCase());
+  return `<button class="btn btn--block ${on ? 'btn--ghost' : 'btn--primary'}"
+      data-add="${esc(recipeId)}">
+      <svg class="gi" aria-hidden="true"><use href="#ic-${on ? 'close' : 'plus'}"/></svg>
+      <span>${on ? `Remove from ${meal}` : `Add to ${meal}`}</span>
+    </button>`;
 }
 
 async function openDetail(recipeId) {
   showSheetLoading(state.items.get(recipeId)?.name || 'Item');
-  const item = await api('/api/item', new URLSearchParams({ id: recipeId }).toString());
-  if (item.error) return;
+  let item;
+  try {
+    item = await api('/api/item', new URLSearchParams({ id: recipeId }).toString());
+  } catch {
+    showSheet(sheetHead('Not available offline') + `<div class="sheet__content">
+      <p class="muted">The full label is fetched when you open it, and this one has not been
+      opened while connected.</p></div>`);
+    return;
+  }
+  if (item.error) {
+    showSheet(sheetHead('Item not found') + `<div class="sheet__content">
+      <p class="muted">This recipe is no longer on any stored menu.</p></div>`);
+    return;
+  }
+  state.items.set(item.recipe_id, { ...state.items.get(item.recipe_id), ...item });
 
-  const rows = NUTRIENTS.map(([key, label, unit]) => {
-    const v = item.nutrients[key];
-    return `<tr><td>${label}</td><td${v == null ? ' class="none"' : ''}>${
-      v == null ? 'not published' : num(v, 1) + unit}</td></tr>`;
-  }).join('');
-
-  // The menu-row legend is a second, independent allergen source; show what it said.
-  const icons = [...new Set(item.served_at.flatMap(s => s.menu_tags || []))].sort();
-
-  const served = item.served_at.slice(0, 12).map(s =>
-    `<div><b>${s.date}</b><span>${esc(s.meal)} · ${esc(s.location_name)} · ${esc(s.station || '')}</span></div>`
-  ).join('') + (item.served_at.length > 12
-    ? `<div><b></b><span>+ ${item.served_at.length - 12} more this week</span></div>` : '');
+  const n = item.nutrients;
+  const cal = item.calories == null ? '–' : Math.round(item.calories);
 
   const warn = item.label_implausible
-    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>This label does not describe one serving.
-       ${item.serving_size ? `It reports ${Math.round(item.calories)} cal for ${esc(item.serving_size)}` : ''} —
-       more than real food of that weight can hold, so it is almost certainly batch-level.
-       Check the card posted at the station.</span></div>`
+    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg>
+        <span>This label reads as a whole batch, not one serving${item.serving_size
+          ? ` — ${Math.round(item.calories)} cal for ${esc(item.serving_size)}` : ''}.
+        Check the card posted at the station.</span></div>`
     : item.nutrition_suspect
-    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>The macros on this label do not add up to its
-       calorie count, so at least one of the two is wrong.</span></div>` : '';
+    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg>
+        <span>The macros on this label do not add up to its calories, so one of them is
+        wrong.</span></div>` : '';
 
-  const inPlate = plateFor().some(p => p.recipe_id === item.recipe_id);
+  // Allergens: the union of two sources, then what each source actually said.
+  let allergens;
+  if (!item.allergen_data_published) {
+    allergens = `<span class="pill pill--unknown">No allergen data published</span>`;
+  } else if (item.allergens.length) {
+    allergens = item.allergens.map(a =>
+      `<span class="pill pill--allergen">${esc(titleCase(a))}</span>`).join('');
+  } else {
+    allergens = `<span class="pill pill--allergen">None listed</span>`;
+  }
+  const diets = item.diets.map(d => `<span class="pill pill--diet">${esc(titleCase(d))}</span>`).join('');
+  // The menu's icons carry diets too, which are already shown as pills; only
+  // the allergen ones are a second opinion on the label.
+  const icons = [...new Set(item.served_at.flatMap(s => s.menu_tags || [])
+    .filter(t => /^contains /i.test(t))
+    .map(t => titleCase(t.replace(/^contains /i, '').replace(/_/g, ' '))))].sort();
+  const sources = [
+    item.allergens_as_published?.length
+      ? `<li><span>Label</span>${esc(item.allergens_as_published.join(', '))}</li>` : '',
+    icons.length ? `<li><span>Menu icons</span>${esc(icons.join(', '))}</li>` : '',
+  ].join('');
+
+  const rows = NUTRIENTS.map(([key, label, unit]) => {
+    const v = labelValue(n[key], unit);
+    const depth = LABEL_DEPTH[key] || 0;
+    return `<tr class="depth-${depth}${LABEL_BOLD.has(key) ? ' is-bold' : ''}">
+      <th scope="row">${label}</th>
+      <td>${v == null ? '<span class="none">Not listed</span>' : v}</td></tr>`;
+  }).join('');
+
+  const served = item.served_at.slice(0, 8).map(s => `<li>
+      <b>${esc(shortDate(s.date))}</b>
+      <span>${esc(s.meal)} · ${esc(s.location_name)}${s.station ? ` · ${esc(s.station)}` : ''}</span>
+    </li>`).join('');
+  const moreServed = item.served_at.length > 8
+    ? `<p class="hint">and ${item.served_at.length - 8} more times this week.</p>` : '';
+
+  const on = plateFor().some(p => p.recipe_id === item.recipe_id);
 
   showSheet(`
-    <div class="sheet__head">
-      <div><h2>${esc(item.name)}</h2><p>${esc(item.serving_size || 'serving size not published')}</p></div>
-      <button class="sheet__close" data-close><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
+    ${sheetHead(item.name, item.serving_size || 'Serving size not listed')}
+    <div class="sheet__content">
+      ${warn}
+      <div class="detail__lead">
+        <p class="detail__cal"><b>${cal}</b><span>calories</span></p>
+        ${macroRow(item)}
+      </div>
+
+      <h3 class="sheet__h3">Allergens &amp; diet</h3>
+      <div class="chiprow">${allergens}${diets}</div>
+      ${sources ? `<ul class="sources">${sources}</ul>` : ''}
+      ${!item.allergen_data_published ? `<p class="hint">Nothing published is not the same
+        as nothing in it. Ask at the station if you have an allergy.</p>` : ''}
+
+      <h3 class="sheet__h3">Nutrition facts</h3>
+      <table class="nutrients">
+        <caption class="sr">Nutrition facts per ${esc(item.serving_size || 'serving')}</caption>
+        <tbody>
+          <tr class="depth-0 is-bold is-cal"><th scope="row">Calories</th><td>${cal}</td></tr>
+          ${rows}
+        </tbody>
+      </table>
+
+      ${served ? `<h3 class="sheet__h3">Served this week</h3>
+        <ul class="served">${served}</ul>${moreServed}` : ''}
+
+      ${item.ingredients ? `<h3 class="sheet__h3">Ingredients</h3>
+        <p class="ingredients">${esc(item.ingredients)}</p>` : ''}
+
+      <p class="detail__source">
+        ${item.source_url ? `<a class="linkbtn" href="${esc(item.source_url)}" target="_blank"
+            rel="noopener">View the official label<span class="sr"> (opens in a new tab)</span></a>` : ''}
+        ${item.fetched_at ? `<span>Checked ${esc(new Date(item.fetched_at).toLocaleDateString(
+            undefined, { month: 'short', day: 'numeric' }))}</span>` : ''}
+      </p>
     </div>
-    ${warn}
-    <div class="targets">
-      <div class="target"><b>${item.calories == null ? '–' : Math.round(item.calories)}</b><span>calories</span></div>
-      <div class="target"><b>${num(item.nutrients.protein_g, 1)}g</b><span>protein</span></div>
-      <div class="target"><b>${num(item.nutrients.total_carbs_g, 1)}g</b><span>carbs</span></div>
-      <div class="target"><b>${num(item.nutrients.total_fat_g, 1)}g</b><span>fat</span></div>
-    </div>
-    <button class="${inPlate ? 'ghostbtn' : 'primarybtn'}" data-add="${esc(item.recipe_id)}"
-      data-in="${inPlate ? '1' : '0'}">${inPlate ? 'Remove from plate' : 'Add to plate'}</button>
-    <h3>Allergens &amp; diet</h3>
-    <div class="chipset__row">${
-      item.allergen_data_published
-        ? (item.allergens.length
-            ? item.allergens.map(a => `<span class="tag tag--allergen">${esc(titleCase(a))}</span>`).join('')
-            : '<span class="tag">none listed</span>')
-        : '<span class="tag tag--unknown">nothing published — not a claim that it is free of anything</span>'
-    }${item.diets.map(d => `<span class="tag tag--diet">${esc(titleCase(d))}</span>`).join('')}</div>
-    ${item.allergens_as_published?.length
-      ? `<p class="hint">Label page said: ${esc(item.allergens_as_published.join(', '))}</p>` : ''}
-    ${icons.length
-      ? `<p class="hint">Menu row icons said: ${esc(icons.join(', '))}. The label page and the
-         menu icons are separate sources and they disagree often enough that both are kept —
-         the chips above are the union.</p>` : ''}
-    <h3>Full label</h3>
-    <table class="nutrients"><tbody>${rows}</tbody></table>
-    <h3>Served</h3>
-    <div class="served">${served}</div>
-    ${item.ingredients ? `<h3>Ingredients</h3><p class="ingredients">${esc(item.ingredients)}</p>` : ''}
-    ${item.source_url ? `<h3>Source</h3><a href="${esc(item.source_url)}" target="_blank"
-       rel="noopener">Published label ↗</a>` : ''}
-    ${item.fetched_at ? `<p class="hint">Scraped ${esc(new Date(item.fetched_at)
-       .toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric',
-       minute: '2-digit' }))} — the hall may have changed the recipe since.</p>` : ''}`);
+    <div class="sheet__foot">${addButton(item.recipe_id, item.name, on)}</div>`);
 }
 
 /* ------------------------------------------------------------------ wiring */
@@ -1353,7 +1478,7 @@ function bind() {
   addEventListener('popstate', () => setTab(location.hash.replace('#', '') || 'browse', true));
 
   $('#buildView').addEventListener('click', e => {
-    if (e.target.closest('#runBuild')) return runBuild();
+    if (e.target.closest('#runBuild, #retryBuild')) return runBuild();
     if (e.target.closest('#editGoals')) return openGoals();
     const use = e.target.closest('[data-useplan]');
     if (use) {
@@ -1367,8 +1492,8 @@ function bind() {
       setTab('plate');
       return;
     }
-    const row = e.target.closest('.planitem[data-id]');
-    if (row) openDetail(row.dataset.id);
+    const row = e.target.closest('[data-detail]');
+    if (row) openDetail(row.dataset.detail);
   });
 
   $('#plateView').addEventListener('click', e => {
@@ -1382,15 +1507,43 @@ function bind() {
       return;
     }
 
+    const go = e.target.closest('[data-meal-browse]');
+    if (go) {
+      selectMeal(go.dataset.mealBrowse);
+      setTab('browse');
+      window.scrollTo(0, 0);
+      return;
+    }
+
     const clear = e.target.closest('[data-clear-meal]');
     if (clear) {
-      state.plates[clear.dataset.clearMeal] = [];
-      savePlate(); renderPlateView();
+      const meal = clear.dataset.clearMeal;
+      const before = plateFor(meal).slice();
+      state.plates[meal] = [];
+      savePlate(); renderPlate();
+      focusMeal(meal);
+      toast(`Cleared ${meal.toLowerCase()}`, () => {
+        state.plates[meal] = before; savePlate(); renderPlate(); render();
+      });
       return;
     }
 
     const rm = e.target.closest('[data-remove]');
-    if (rm) { togglePlate(rm.dataset.remove, rm.dataset.from); renderPlateView(); }
+    if (rm) {
+      const meal = rm.dataset.from;
+      const at = plateFor(meal).findIndex(p => p.recipe_id === rm.dataset.remove);
+      const gone = plateFor(meal)[at];
+      if (!gone) return;
+      plateFor(meal).splice(at, 1);
+      savePlate(); renderPlate();
+      // The button that had focus is gone; land on the next one, or the meal.
+      const next = $$(`#plateView [data-remove][data-from="${CSS.escape(meal)}"]`)[at]
+        || $$(`#plateView [data-remove][data-from="${CSS.escape(meal)}"]`)[at - 1];
+      next ? next.focus() : focusMeal(meal);
+      toast(`Removed ${gone.name}`, () => {
+        plateFor(meal).splice(at, 0, gone); savePlate(); renderPlate(); render();
+      });
+    }
   });
 
   const goalField = (sel, key) => $(sel).addEventListener('input', e => {
@@ -1466,6 +1619,10 @@ function bind() {
     const open = e.target.closest('[data-id]');
     if (open) { openDetail(open.dataset.id); return; }
 
+    const widen = e.target.closest('[data-widen]');
+    if (widen) { state.scope = widen.dataset.widen; applyFilters(); return; }
+    if (e.target.closest('[data-reset]')) { resetFilters(); return; }
+
     const all = e.target.closest('[data-collapseall]');
     if (all) {
       const keys = stationKeys(state.menu || { locations: [] });
@@ -1531,22 +1688,19 @@ function bind() {
   arrowNav($('#mealTabs'), '[data-meal]', b => selectMeal(b.dataset.meal));
 
   $('#sheet').addEventListener('click', e => {
-    if (e.target.closest('[data-close]') || e.target === $('#sheet')) { $('#sheet').close(); return; }
     const add = e.target.closest('[data-add]');
-    if (add) {
-      const added = !plateFor().some(p => p.recipe_id === add.dataset.add);
-      togglePlate(add.dataset.add);
-      add.dataset.in = added ? '1' : '0';
-      add.className = added ? 'ghostbtn' : 'primarybtn';
-      add.textContent = added ? 'Remove from plate' : 'Add to plate';
-      return;
-    }
-    const rm = e.target.closest('[data-remove]');
-    if (rm) { togglePlate(rm.dataset.remove); $('#sheet').close(); }
+    if (!add) return;
+    const id = add.dataset.add;
+    addOrRemove(id);
+    const on = plateFor().some(p => p.recipe_id === id);
+    add.outerHTML = addButton(id, state.items.get(id)?.name || '', on);
   });
 
   $('#hero').addEventListener('click', e => {
-    if (e.target.closest('#plateClear')) { state.plates[state.meal] = []; savePlate(); render(); }
+    if (e.target.closest('[data-tab-go="plate"]')) {
+      state.openMeals.add(state.meal);
+      setTab('plate');
+    }
   });
 
   const bindField = (sel, key, prop = 'value') => $(sel).addEventListener('input', e => {
@@ -1620,10 +1774,10 @@ async function init() {
   if (served) state.meal = served;
 
   $('#allergenChips').innerHTML = state.meta.allergens.map(a =>
-    `<button type="button" class="chip" data-value="${a}" aria-pressed="false">${
+    `<button type="button" class="chip" data-value="${a}" aria-pressed="false"><svg class="gi chip__tick" aria-hidden="true"><use href="#ic-check"/></svg>${
       esc(titleCase(a))}</button>`).join('');
   $('#dietChips').innerHTML = DIETS.map(d =>
-    `<button type="button" class="chip chip--diet" data-value="${d}" aria-pressed="false">${
+    `<button type="button" class="chip" data-value="${d}" aria-pressed="false"><svg class="gi chip__tick" aria-hidden="true"><use href="#ic-check"/></svg>${
       titleCase(d)}</button>`).join('');
 
   loadGoals(); syncGoalInputs();

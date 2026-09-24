@@ -176,9 +176,9 @@
         <h3>Targets</h3>
         <div class="fgrid">
           <label class="field"><span>Min protein (g)</span>
-            <input type="number" id="fMinProtein" min="0" step="1" placeholder="any"></label>
+            <input type="number" inputmode="numeric" id="fMinProtein" min="0" step="1" placeholder="any"></label>
           <label class="field"><span>Max calories</span>
-            <input type="number" id="fMaxCalories" min="0" step="10" placeholder="any"></label>
+            <input type="number" inputmode="numeric" id="fMaxCalories" min="0" step="10" placeholder="any"></label>
         </div>
       </section>
       <section class="fgroup">
@@ -220,13 +220,13 @@
     <div class="sheet__content">
       <div class="fgrid">
         <label class="field"><span>Calories</span>
-          <input type="number" id="gCalories" min="0" step="50" placeholder="700"></label>
+          <input type="number" inputmode="numeric" id="gCalories" min="0" step="50" placeholder="700"></label>
         <label class="field"><span>Protein at least (g)</span>
-          <input type="number" id="gProtein" min="0" step="5" placeholder="35"></label>
+          <input type="number" inputmode="numeric" id="gProtein" min="0" step="5" placeholder="35"></label>
         <label class="field"><span>Carbs at most (g)</span>
-          <input type="number" id="gCarbs" min="0" step="5" placeholder="any"></label>
+          <input type="number" inputmode="numeric" id="gCarbs" min="0" step="5" placeholder="any"></label>
         <label class="field"><span>Fat at most (g)</span>
-          <input type="number" id="gFat" min="0" step="5" placeholder="any"></label>
+          <input type="number" inputmode="numeric" id="gFat" min="0" step="5" placeholder="any"></label>
       </div>
       <p class="hint">Calories and protein steer the builder. Carbs and fat act as ceilings it
         tries not to cross.</p>
