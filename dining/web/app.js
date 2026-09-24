@@ -37,7 +37,7 @@ const state = {
   plates: {}, openMeals: new Set(),
   q: '', scope: 'meal', minProtein: '', maxCalories: '', sort: 'name',
   without: new Set(), diets: new Set(), includeUnknown: false, hideImplausible: false,
-  items: new Map(), collapsed: new Set(), menu: null,
+  items: new Map(), collapsed: new Set(), menu: null, loadToken: 0,
 };
 
 /* ------------------------------------------------------------- meal builder
@@ -367,7 +367,7 @@ function card(item, sub) {
       </div>
       <button class="add" data-add="${esc(item.recipe_id)}" data-in="${inPlate}"
               aria-label="${inPlate === '1' ? 'Remove from' : 'Add to'} plate"
-              >${inPlate === '1' ? '✓' : '+'}</button>
+              >${inPlate === '1' ? `<svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>` : `<svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg>`}</button>
     </div>
     ${statTiles(item)}
     ${tags(item)}
@@ -506,9 +506,47 @@ function jumpbar(data) {
     ${chips.join('')}${toggle}</div>`;
 }
 
+/* Cards with the text taken out, shown while a menu is in flight.
+
+   Switching hall or meal used to leave the previous hall's food on screen
+   until the new data landed -- so the app looked like it had ignored you, and
+   then answered a question you had stopped asking. Skeletons reserve the same
+   space the real cards take, so nothing jumps when they are replaced. */
+function skeleton(rows = 6) {
+  // Same elements the real list uses -- a <ul> here would inherit bullets that
+  // the real .cards container never has to reset.
+  const card = `<div class="sk">
+    <span class="sk__line sk__line--name"></span>
+    <span class="sk__line sk__line--sub"></span>
+    <span class="sk__tiles"></span>
+  </div>`;
+  return `<section class="station">
+    <h2 class="station__head"><span class="sk__line sk__line--head"></span></h2>
+    <div class="cards">${card.repeat(rows)}</div>
+  </section>`;
+}
+
+/** Stamp a loading view, but only if the request is slow enough to notice.
+    Against a local cache the data is back in 20ms, and a skeleton that flashes
+    for one frame is worse than no skeleton at all. */
+function whileLoading(render) {
+  const token = ++state.loadToken;
+  const timer = setTimeout(() => {
+    if (state.loadToken === token) render();
+  }, 180);
+  return () => { clearTimeout(timer); return state.loadToken === token; };
+}
+
 async function loadMenu() {
+  const done = whileLoading(() => {
+    $('#content').innerHTML = skeleton();
+    $('#content').setAttribute('aria-busy', 'true');
+  });
   const p = new URLSearchParams({ date: state.date, meal: state.meal, location: state.location });
   const data = await api('/api/menu', p.toString());
+  // A slower earlier request must not paint over a newer one.
+  if (!done()) return;
+  $('#content').removeAttribute('aria-busy');
   state.menu = data;
   const main = $('#content');
 
@@ -540,7 +578,13 @@ async function loadMenu() {
 }
 
 async function loadSearch() {
+  const done = whileLoading(() => {
+    $('#content').innerHTML = skeleton(4);
+    $('#content').setAttribute('aria-busy', 'true');
+  });
   const data = await api('/api/search', searchParams());
+  if (!done()) return;
+  $('#content').removeAttribute('aria-busy');
   const main = $('#content');
   if (data.error) { main.innerHTML = emptyState('Bad filter', esc(data.error)); return; }
 
@@ -554,7 +598,7 @@ async function loadSearch() {
   }
 
   const notice = data.hidden_unknown_allergens
-    ? `<div class="notice"><span>⚠</span><span>Items whose allergen data was never
+    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>Items whose allergen data was never
        published are hidden, because "nothing published" is not the same as "free of it".
        Turn on <em>Also show items with no allergen data</em> to see them.</span></div>` : '';
 
@@ -633,10 +677,20 @@ function goalBar(label, value, target, unit, cls, ceiling = false) {
   const over = target && value > target;
   const state_ = !target ? 'none' : ceiling ? (over ? 'over' : 'ok')
     : (pct >= .95 ? 'ok' : pct >= .7 ? 'near' : 'under');
+  // Where the target sits on the track. Once the bar is full it stops being
+  // able to say whether you landed on the number or sailed past it, and for a
+  // ceiling that is the only thing worth knowing. The notch keeps the target
+  // visible at its own position no matter how far the fill has gone.
+  const notch = target && value > target * .08
+    ? `<span class="gbar__notch" style="left:${(1 / Math.max(pct, 1)) * 100}%"></span>`
+    : '';
+
   return `<div class="gbar gbar--${cls}" data-state="${state_}">
     <div class="gbar__top"><span>${label}</span>
       <b>${Math.round(value)}${unit}${target ? ` <i>/ ${Math.round(target)}${unit}</i>` : ''}</b></div>
-    <div class="gbar__track"><div class="gbar__fill" style="width:${Math.min(pct, 1) * 100}%"></div></div>
+    <div class="gbar__track">
+      <div class="gbar__fill" style="width:${Math.min(pct, 1) * 100}%"></div>${notch}
+    </div>
   </div>`;
 }
 
@@ -769,7 +823,7 @@ function mealSection(meal) {
           <div class="planitem__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}</span></div>
           <span class="planitem__cal">${Math.round(i.calories)}</span>
           <button class="remove" data-remove="${esc(i.recipe_id)}" data-from="${esc(meal)}"
-                  aria-label="Remove ${esc(i.name)}">&times;</button>
+                  aria-label="Remove ${esc(i.name)}"><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
         </li>`).join('')}</ul>
 
       <div class="plan__bars">
@@ -779,7 +833,7 @@ function mealSection(meal) {
         ${goal.maxFat ? goalBar('Fat', t.f, goal.maxFat, 'g', 'fat', true) : ''}
       </div>
 
-      ${flagged ? `<div class="notice"><span>⚠</span><span>${flagged} item${
+      ${flagged ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>${flagged} item${
         flagged === 1 ? ' has a label that fails' : 's have labels that fail'} the plausibility
         check, so this meal's total is probably too high.</span></div>` : ''}
 
@@ -976,7 +1030,7 @@ function renderPlate() {
   $$('#content [data-add]').forEach(btn => {
     const on = plateFor().some(p => p.recipe_id === btn.dataset.add);
     btn.dataset.in = on ? '1' : '0';
-    btn.textContent = on ? '✓' : '+';
+    btn.innerHTML = on ? `<svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>` : `<svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg>`;
     btn.setAttribute('aria-label', `${on ? 'Remove from' : 'Add to'} plate`);
   });
 }
@@ -1014,7 +1068,7 @@ async function openStats() {
   showSheet(`
     <div class="sheet__head">
       <div><h2>About this data</h2><p>Scraped from the published menus, not live</p></div>
-      <button class="sheet__close" data-close>&times;</button>
+      <button class="sheet__close" data-close><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
     </div>
     <div class="bignums">
       <div class="bignum"><b>${d.days}</b><span>days</span></div>
@@ -1073,12 +1127,12 @@ async function openDetail(recipeId) {
     ? `<div><b></b><span>+ ${item.served_at.length - 12} more this week</span></div>` : '');
 
   const warn = item.label_implausible
-    ? `<div class="notice"><span>⚠</span><span>This label does not describe one serving.
+    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>This label does not describe one serving.
        ${item.serving_size ? `It reports ${Math.round(item.calories)} cal for ${esc(item.serving_size)}` : ''} —
        more than real food of that weight can hold, so it is almost certainly batch-level.
        Check the card posted at the station.</span></div>`
     : item.nutrition_suspect
-    ? `<div class="notice"><span>⚠</span><span>The macros on this label do not add up to its
+    ? `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>The macros on this label do not add up to its
        calorie count, so at least one of the two is wrong.</span></div>` : '';
 
   const inPlate = plateFor().some(p => p.recipe_id === item.recipe_id);
@@ -1086,7 +1140,7 @@ async function openDetail(recipeId) {
   showSheet(`
     <div class="sheet__head">
       <div><h2>${esc(item.name)}</h2><p>${esc(item.serving_size || 'serving size not published')}</p></div>
-      <button class="sheet__close" data-close>&times;</button>
+      <button class="sheet__close" data-close><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
     </div>
     ${warn}
     <div class="bignums">
@@ -1348,7 +1402,25 @@ function resetFilters() {
 }
 
 async function init() {
-  state.meta = await api('/api/meta');
+  // The first load is the one that had no loading state at all: everything on
+  // this page is drawn from /api/meta, so until it lands there was nothing to
+  // look at but an empty shell and a search box. Put the skeleton up before
+  // asking for anything.
+  document.body.dataset.booting = '1';
+  $('#content').innerHTML = skeleton();
+
+  let meta;
+  try {
+    meta = await api('/api/meta');
+  } catch (err) {
+    document.body.dataset.booting = '0';
+    $('#content').innerHTML = emptyState('Cannot reach the menu server',
+      `The page loaded but <code>/api/meta</code> did not answer. If you are running
+       this locally, check that <code>python3 -m dining.serve</code> is still up.`);
+    return;
+  }
+  document.body.dataset.booting = '0';
+  state.meta = meta;
   document.title = state.meta.college_name;
   $('#collegeName').textContent = state.meta.college_name;
 
