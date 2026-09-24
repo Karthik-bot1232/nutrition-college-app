@@ -583,6 +583,7 @@ async function loadMenu() {
     $('#content').setAttribute('aria-busy', 'true');
   });
   const p = new URLSearchParams({ date: state.date, meal: state.meal, location: state.location });
+<<<<<<< HEAD
   let data;
   try {
     data = await api('/api/menu', p.toString());
@@ -597,6 +598,9 @@ async function loadMenu() {
        is no copy on the phone. Menus you have viewed before stay available offline.`);
     return;
   }
+=======
+  const data = await api('/api/menu', p.toString());
+>>>>>>> 7af8fe874cb9294e182a9bd655c594e7db0c5cfd
   // A slower earlier request must not paint over a newer one.
   if (!done()) return;
   $('#content').removeAttribute('aria-busy');
@@ -635,6 +639,7 @@ async function loadSearch() {
     $('#content').innerHTML = skeleton(4);
     $('#content').setAttribute('aria-busy', 'true');
   });
+<<<<<<< HEAD
   let data;
   try {
     data = await api('/api/search', searchParams());
@@ -646,6 +651,9 @@ async function loadSearch() {
       + 'already opened still works.');
     return;
   }
+=======
+  const data = await api('/api/search', searchParams());
+>>>>>>> 7af8fe874cb9294e182a9bd655c594e7db0c5cfd
   if (!done()) return;
   $('#content').removeAttribute('aria-busy');
   const main = $('#content');

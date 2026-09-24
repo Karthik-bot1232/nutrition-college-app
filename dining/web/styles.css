@@ -800,6 +800,7 @@ html, body { overscroll-behavior: none; }
 @media (display-mode: standalone) {
   body { min-height: 100dvh; }
 }
+<<<<<<< HEAD
 
 /* Shown only when the service worker answered from cache. A menu from a
    previous visit is still useful; presenting it as today's would not be. */
@@ -811,3 +812,5 @@ html, body { overscroll-behavior: none; }
   color: var(--warn); font-size: var(--t-sm);
 }
 .offlinebar .gi { flex: none; width: 16px; height: 16px; }
+=======
+>>>>>>> 7af8fe874cb9294e182a9bd655c594e7db0c5cfd
