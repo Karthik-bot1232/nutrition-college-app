@@ -1,1120 +1,845 @@
-/* Local UI for the dining scraper. No build step, no dependencies. */
+/* =========================================================================
+   Design tokens. The only place a colour, radius, size or duration is
+   literally written down; everything below and in every component reads from
+   here.
+
+   Contrast was measured against the surface each token actually lands on, and
+   four values from the brief did not clear WCAG 2.2 AA. What changed and why
+   is recorded beside each one.
+   ========================================================================= */
 
 :root {
-  /* Warm neutrals, not blue-grey. Every starter ships the same cold slate ramp,
-     and a page built out of it reads as untouched no matter what is arranged on
-     top. These are the same lightness steps pulled towards paper. */
-  --bg: #f7f4f0;
-  --surface: #fffdfb;
-  --surface-2: #f2eee9;
-  --tile: #f4f0eb;
-  --text: #17130f;
-  --muted: #5f564e;
-  --faint: #6b6159;
-  --border: #e6e0d8;
-  --border-strong: #d3cabe;
+  color-scheme: dark;
 
-  /* The school's own red, dark enough to be read as text (5.8:1 on card).
-     A nutrition app for one university has an identity available to it for
-     free, and using it is the difference between "an app" and "our app". */
-  --brand: #c8102e;
-  --brand-ink: #9e0b23;
-  --brand-soft: #fdeceF;
-  /* Maryland gold is #FFD200, which is 1.4:1 on white and unusable as text.
-     It stays a fill -- the today dot, a highlight -- and the text-safe version
-     is this. */
-  --gold: #ffd200;
-  --gold-ink: #7a6000;
-  --gold-soft: #fdf3d7;
+  /* ---- surfaces: true black base, two steps up for depth ---- */
+  --bg:            #000000;
+  --surface:       #0E0E10;   /* sticky bars, sheets */
+  --card:          #16161A;   /* elevated cards */
+  --card-2:        #1D1D22;   /* insets inside a card */
 
-  --ink: #17130f;
-  --on-ink: #fffdfb;
-  --raised: #fffdfb;
-  --accent: #117036;
-  --accent-soft: #e4f4e9;
+  /* Hairline between surfaces. Decorative, so 3:1 does not apply -- it
+     separates regions, it is not how you find a control. */
+  --border:        #26262B;
+  /* The border of an actual control does have to be findable: #26262B measures
+     1.20:1 on a card, so controls use this instead (3.42:1). */
+  --border-control:#6B6B75;
 
-  --protein: #c8102e;
-  --carbs:   #a06800;
-  --fat:     #1a56c4;
-  --track:   #e9e3da;
+  /* ---- text ---- */
+  --text:          #F5F5F7;   /* 16.6:1 on card */
+  --text-2:        #A1A1AA;   /*  7.0:1 on card */
+  /* Brief said #71717A: 3.73:1 on card, 3.99:1 on surface. Both under 4.5.
+     Lightened to the nearest value that clears it everywhere (5.3:1). */
+  --text-3:        #8A8A93;
 
-  --protein-ink: #a80d26;
-  --carbs-ink:   #7a6000;
-  --fat-ink:     #1a56c4;
-  --cal-ink:     #b0410f;
+  /* ---- accent: UMD red ---- */
+  --accent:        #E21833;   /* fills and UI only: 3.79:1 is < 4.5 as text */
+  --accent-press:  #C41429;
+  /* When red has to BE text, it uses this (4.79:1 on card). */
+  --accent-text:   #F04055;
+  --on-accent:     #FFFFFF;   /* 4.76:1 on the red fill */
+  --accent-wash:   rgba(226, 24, 51, .14);
+  --gold:          #FFD200;   /* the today dot, and nothing else */
 
-  --warn-bg: #fdf3d7;
-  --warn-text: #7a6000;
-  --warn-border: #eeddaf;
+  /* ---- macros: one hue each, used everywhere that macro appears ---- */
+  --carbs:         #F5B94A;   /* 10.2:1 */
+  --protein:       #FF6B6B;   /*  6.5:1 */
+  --fat:           #5AB0FF;   /*  7.8:1 */
 
-  --shadow: 0 1px 2px rgba(35, 25, 15, .05);
-  --shadow-md: 0 4px 14px rgba(35, 25, 15, .08);
-  --shadow-lg: 0 18px 48px rgba(35, 25, 15, .22);
+  /* ---- semantic ---- */
+  --good:          #22C55E;
+  --good-wash:     rgba(34, 197, 94, .15);
+  --warn:          #F5B94A;
+  --warn-wash:     rgba(245, 185, 74, .13);
+  --danger:        #FF6B6B;
+  --danger-wash:   rgba(255, 107, 107, .13);
 
-  /* A type scale with actual steps in it. The page had nineteen sizes and
-     sixty-one of them between 10px and 14px, which is not a hierarchy -- it is
-     a wall of small text with nothing for the eye to land on. Six sizes, each
-     a clear jump from the last. */
-  --t-hero: 32px;   /* the one number a card is really about */
-  --t-xl:   22px;
+  /* ---- spacing: 4px ramp ---- */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 48px;
+
+  /* ---- radii ---- */
+  --r-card: 16px;
+  --r-ctl:  12px;
+  --r-pill: 999px;
+  --r-sheet: 20px;
+
+  /* ---- type ---- */
+  --font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --t-hero: 30px;   /* calories */
+  --t-xl:   20px;
   --t-lg:   17px;
-  --t-md:   15px;   /* body, item names */
+  --t-md:   15px;
   --t-sm:   13px;
-  --t-xs:   11px;   /* labels and captions, and nothing else */
+  --t-xs:   11px;
 
-  /* Spacing on a 4px ramp. Nineteen ad-hoc values meant every gap was roughly
-     every other gap, so nothing looked deliberately grouped or deliberately
-     apart. */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 24px;
-  --s-6: 32px;
-  --s-7: 48px;
+  /* ---- motion ---- */
+  --dur:   170ms;
+  --ease:  cubic-bezier(.4, 0, .2, 1);
+  --press: .98;
 
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
-  --r-xl: 26px;
-
-  /* Each stat keeps its own hue on its icon only. The fills below are for the
-     icon glyph, which is a graphic and wants 3:1, not the 4.5:1 that the
-     numbers beside them need -- those stay body text. */
-  --cal-ink: #d4451c;
-  --carb-ink: #7d5200;
-  --protein-ink: #b32a2e;
-  --fat-ink: #1a56c4;
-  --cal-soft: #fdeee8;
-  --carb-soft: #fbf1dd;
-  --protein-soft: #fdecec;
-  --fat-soft: #e8effd;
+  /* ---- layout ---- */
+  --tap:   44px;
+  --nav-h: 56px;
+  --maxw:  1280px;
 }
 
-/* Dark is available, but it is no longer assumed.
-
-   This followed prefers-color-scheme, which meant anyone whose Mac is in dark
-   mode had never once seen the light design -- including while asking for it.
-   A theme is a choice the app should offer, not one it should infer and then
-   never mention. */
-:root[data-theme="dark"] {
-    --bg: #0a0c0f;
-    --surface: #14171c;
-    --surface-2: #1a1e24;
-    --tile: #1c2027;
-    --text: #eceef2;
-    --muted: #98a1ae;
-    --faint: #868f9d;
-    --border: #232830;
-    --border-strong: #333a45;
-
-    --ink: #ffffff;
-    --on-ink: #0b0d12;
-    --raised: #2b323c;
-    --accent: #4ade80;
-    --accent-soft: #14301f;
-
-    --protein: #ff6b6f;
-    --carbs:   #f5b13f;
-    --fat:     #6ba4ff;
-    --track:   #262b33;
-
-    /* On a dark tile the fills already clear 6:1, so ink and fill are the same. */
-    --protein-ink: #ff6b6f;
-    --carbs-ink:   #f5b13f;
-    --fat-ink:     #6ba4ff;
-    --cal-ink:     #ff8a5c;
-    --carbs-soft:  #2a2213;
-    --cal-soft:    #2a1a13;
-    --carb-soft:   #2a2213;
-    --protein-soft:#2b1719;
-    --fat-soft:    #16203a;
-
-    --warn-bg: #2c2412;
-    --warn-text: #f3d18d;
-    --warn-border: #4e411d;
-
-    --shadow: none;
-    --shadow-md: none;
-    --shadow-lg: 0 20px 52px rgba(0,0,0,.65);
+/* One toggle kept for anyone who needs light; dark is the design. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F7F7F8; --surface: #FFFFFF; --card: #FFFFFF; --card-2: #F2F2F4;
+  --border: #E4E4E7; --border-control: #9A9AA3;
+  --text: #121214; --text-2: #52525B; --text-3: #5F5F68;
+  --accent-text: #C41429; --accent-wash: rgba(226, 24, 51, .10);
+  --carbs: #9A6B00; --protein: #C0263C; --fat: #1A62C4;
+  --good: #15803D; --good-wash: rgba(21, 128, 61, .12);
+  --warn: #8A6100; --warn-wash: rgba(138, 97, 0, .12);
+  --danger: #B3261E; --danger-wash: rgba(179, 38, 30, .10);
 }
 
-* { box-sizing: border-box; }
+/* =========================================================================
+   Base
+   ========================================================================= */
 
-/* Class rules like `display:grid` otherwise beat the UA rule for [hidden]. */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* The [hidden] attribute only sets display:block-level none at user-agent
+   priority, so any rule of ours that sets display -- grid on .controls, on
+   .cards, on a view -- silently beats it. Collapsing a station marked the list
+   hidden and left it on screen. This restores the attribute's meaning. */
 [hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  font: 400 var(--t-md)/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
+  /* Room for the fixed tab bar plus the home indicator. */
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s4));
+  overflow-x: hidden;
 }
 
-.wrap { max-width: 940px; margin: 0 auto; padding: 0 16px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; }
+input { -webkit-appearance: none; appearance: none; }
+h1, h2, h3, p, ul, ol { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
 
-button, input, select { font: inherit; color: inherit; }
-button { cursor: pointer; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* A visible ring on every focusable thing. 2px accent + offset, per the brief;
+   the accent clears 3:1 against both the card and the page. */
+:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+  border-radius: var(--r-ctl);
+}
+/* Mouse users do not get the ring; keyboard users always do. */
+:focus:not(:focus-visible) { outline: none; }
 
-/* ---------- shared buttons ---------- */
-
-.ghostbtn {
-  border: 1px solid var(--border-strong); background: var(--surface);
-  border-radius: var(--r-md); padding: 9px 14px; font-size: 13.5px; font-weight: 560;
-  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-}
-.ghostbtn:hover { border-color: var(--faint); }
-
-.primarybtn {
-  border: 1px solid var(--ink); background: var(--ink); color: var(--on-ink);
-  border-radius: var(--r-md); padding: 9px 16px; font-size: 13.5px; font-weight: 620;
-  white-space: nowrap;
-}
-.primarybtn:hover { opacity: .88; }
-
-/* ---------- app bar ---------- */
-
-/* Brand and dates scroll away; only the controls you re-use stay pinned, which
-   halves the chrome that used to sit above the food. */
-.appbar { padding: 10px 0 0; background: var(--bg); }
-.appbar__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-
-.brand h1 { margin: 0; font-size: 19px; font-weight: 760; letter-spacing: -.028em; }
-.brand__sub { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
-
-.appbar__actions { display: flex; gap: 8px; align-items: center; }
-.iconbtn {
-  position: relative; width: 38px; height: 38px; flex: none;
-  border: 1px solid var(--border); border-radius: 50%;
-  background: var(--surface); display: grid; place-items: center;
-}
-.iconbtn svg { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 1.8;
-               stroke-linecap: round; stroke-linejoin: round; }
-.iconbtn:hover { border-color: var(--faint); }
-.iconbtn:hover svg { stroke: var(--text); }
-.iconbtn--plate svg { stroke: var(--text); }
-.iconbtn__count {
-  position: absolute; top: -4px; right: -4px; min-width: 19px; height: 19px;
-  border-radius: 10px; background: var(--ink); color: var(--on-ink);
-  font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0 5px;
-}
-
-/* ---------- date strip ---------- */
-
-/* The sprite is a definitions-only SVG: it must occupy no space and never be
-   read out, but display:none in some engines also kills the <use> references. */
-.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
-
-.weekbar { padding: 8px 0 9px; }
-
-/* A week at a time, paged. Twenty days in one scrolling run gave no sense of
-   which week you were looking at, and put this Tuesday and next Tuesday side by
-   side looking identical. */
-.weeknav { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.weeknav__arrow {
-  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
-  border: 1px solid var(--border); border-radius: 11px;
-  background: var(--surface); color: var(--muted); transition: .12s;
-}
-.weeknav__arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor;
-                      stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.weeknav__arrow:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); }
-.weeknav__arrow:disabled { opacity: .32; cursor: default; }
-.weeknav__label { flex: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.weeknav__label b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
-.weeknav__label span { font-size: 11.5px; font-weight: 600; color: var(--faint); }
-
-/* Seven fixed columns, Monday first, so a weekday sits in the same place every
-   week and paging does not shuffle the row under your thumb. */
-.weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-
-.day {
-  padding: 6px 0 7px; border-radius: 13px;
-  border: 1px solid transparent; background: var(--surface);
-  display: grid; gap: 1px; text-align: center; transition: .12s; position: relative;
-}
-.day span { display: block; font-size: 10px; text-transform: uppercase;
-            letter-spacing: .07em; color: var(--faint); font-weight: 700; }
-.day strong { font-size: 15.5px; font-weight: 680; letter-spacing: -.02em; }
-.day[aria-selected="true"] { background: var(--ink); }
-.day[aria-selected="true"] span, .day[aria-selected="true"] strong { color: var(--on-ink); }
-.day[data-today="1"]::after {
-  content: ""; position: absolute; left: 50%; bottom: 5px; translate: -50% 0;
-  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
-}
-.day[data-today="1"][aria-selected="true"]::after { background: var(--on-ink); }
-/* A day the college published nothing for keeps its column rather than being
-   dropped, so the week does not reflow and Wednesday stays under Wednesday. */
-.day:disabled { background: none; border-color: var(--border); opacity: .45; cursor: default; }
-.day:disabled strong { font-weight: 560; }
-
-/* ---------- sticky toolbar ---------- */
-
-.toolbar {
-  position: sticky; top: 0; z-index: 30; padding: 7px 0 8px;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(180%) blur(14px);
-}
-
-.segmented { display: flex; gap: 3px; padding: 3px; background: var(--surface); border-radius: 14px; }
-.segmented button {
-  flex: 1; border: 0; background: none; border-radius: 11px;
-  padding: 8px 4px; font-size: 13.5px; font-weight: 580; color: var(--muted);
-}
-.segmented button[aria-selected="true"] {
-  background: var(--raised); color: var(--text); box-shadow: var(--shadow-md); font-weight: 660;
-}
-.segmented button[disabled] { opacity: .32; cursor: default; }
-
-.pills { display: block; margin-top: var(--s-2); }
-.pills::-webkit-scrollbar { display: none; }
-.pill {
-  flex: none; padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 580;
-  border: 1px solid transparent; background: var(--surface); color: var(--muted);
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.pill[aria-selected="true"] { background: var(--ink); color: var(--on-ink); font-weight: 650; }
-.pill small {
-  font-weight: 650; font-size: 10.5px; padding: 1px 6px; border-radius: 999px;
-  background: var(--surface-2); color: var(--faint);
-}
-.pill[aria-selected="true"] small {
-  background: color-mix(in srgb, var(--on-ink) 20%, transparent); color: var(--on-ink);
-}
-
-.searchrow { display: flex; gap: 8px; margin-top: 8px; }
-.search { position: relative; flex: 1; display: flex; align-items: center; }
-.search__icon {
-  position: absolute; left: 13px; width: 16px; height: 16px;
-  fill: none; stroke: var(--faint); stroke-width: 2; stroke-linecap: round; pointer-events: none;
-}
-.search input {
-  width: 100%; min-height: var(--tap, 44px);
-  padding: 10px 34px 10px 38px; border-radius: var(--r-md);
-  border: 1px solid var(--border); background: var(--surface);
-  /* 16px exactly. iOS zooms the whole page in on focus for anything smaller,
-     and then leaves you zoomed -- on a phone that is a bug, not a detail. */
-  font-size: 16px;
-}
-.search input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
-.search input::-webkit-search-cancel-button { display: none; }
-.search__clear {
-  position: absolute; right: 8px; border: 0; background: none;
-  color: var(--faint); font-size: 20px; line-height: 1; padding: 0 6px;
-}
-
-.filterbtn {
-  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
-  border: 1px solid transparent; background: var(--surface);
-  border-radius: 14px; padding: 9px 15px; font-size: 13.5px; font-weight: 580;
-}
-.filterbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor;
-                 stroke-width: 2; stroke-linecap: round; }
-.filterbtn:hover { color: var(--text); }
-.filterbtn__count {
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
-  background: var(--ink); color: var(--on-ink); font-size: 11px; font-weight: 700;
-  display: grid; place-items: center;
-}
-
-.activefilters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
-.afchip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 9px 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 580;
-  background: var(--surface); border: 0; color: var(--text);
-}
-.afchip::after { content: "×"; font-size: 14px; line-height: 1; color: var(--faint); }
-.afchip:hover::after { color: var(--protein); }
-.afclear { border: 0; background: none; color: var(--muted); font-size: 12px;
-           font-weight: 620; text-decoration: underline; padding: 5px 2px; }
-
-/* ---------- hero: the day's plate ---------- */
-
-.hero:not(:empty) { display: grid; gap: 10px; padding-top: 14px; }
-.hero:not(:empty) + main { padding-top: 26px; }
-
-.linkbtn {
-  border: 0; background: none; padding: 7px 0 0; font-size: 12.5px;
-  font-weight: 620; color: var(--muted); text-decoration: underline;
-}
-.linkbtn:hover { color: var(--protein); }
-
-
-/* The plate summary, one line. It used to be a 118px ring, a headline, a
-   paragraph and three empty tiles -- most of a phone screen of nothing, ahead
-   of the food, on every load. */
-.plateline {
-  display: flex; align-items: center; gap: 13px; padding: 11px 14px;
-  border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border);
-}
-.plateline--empty { padding: 11px 14px; gap: 10px; }
-.plateline__ic { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--faint);
-                 stroke-width: 1.7; }
-.plateline--empty p { margin: 0; font-size: 12.5px; color: var(--muted); }
-.plateline--empty p b { color: var(--text); font-weight: 700; }
-.plateline__ring { position: relative; flex: none; display: grid; place-items: center; }
-.plateline__center { position: absolute; inset: 0; display: grid; place-items: center; }
-.plateline__center b { font-size: 12px; font-weight: 740; letter-spacing: -.02em;
-                       font-variant-numeric: tabular-nums; }
-.plateline__text { min-width: 0; flex: 1; }
-.plateline__text h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
-.plateline__text p { margin: 1px 0 0; font-size: 11.5px; color: var(--faint); }
-.plateline__macros { display: flex; gap: 14px; flex: none; }
-.pmacro { text-align: right; line-height: 1.15; }
-.pmacro b { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.pmacro span { display: block; font-size: 9.5px; color: var(--faint); font-weight: 600; }
-.pmacro--p b { color: var(--protein-ink); }
-.pmacro--c b { color: var(--carbs-ink); }
-.pmacro--f b { color: var(--fat-ink); }
-@media (max-width: 560px) {
-  .plateline__macros { gap: 10px; }
-  .plateline__text h2 { font-size: 14px; }
-}
-.ring { flex: none; transform: rotate(-90deg); overflow: visible; }
-.ring__bg, .ring__fg { fill: none; stroke-width: 11; }
-.ring__bg { stroke: var(--track); }
-.ring__fg { stroke-linecap: round; transition: stroke-dashoffset .45s ease; }
-.ring--cal .ring__fg { stroke: var(--ink); }
-.ring--p .ring__fg { stroke: var(--protein); }
-.ring--c .ring__fg { stroke: var(--carbs); }
-.ring--f .ring__fg { stroke: var(--fat); }
-
-/* ---------- content ---------- */
-
-main { padding-top: 22px; }
-
-.jumpbar {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--s-3); margin: 0 0 var(--s-4);
-}
-.jumpbar__label {
-  font-size: var(--t-xs); font-weight: 750; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--faint);
-}
-/* The one control left in this bar. */
-.jump--toggle {
-  border: 0; background: none; padding: 4px 0; color: var(--muted);
-  font-size: var(--t-sm); font-weight: 620;
-  text-decoration: underline; text-underline-offset: 3px;
-}
-.jump--toggle:hover { color: var(--text); }
-
-.hall { margin-bottom: 28px; scroll-margin-top: 130px; }
-.hall__head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  margin: 0 4px 12px; padding-bottom: 9px; border-bottom: 1px solid var(--border);
-}
-.hall__head h2 { margin: 0; font-size: 17px; font-weight: 720; letter-spacing: -.022em; }
-.hall__head span { font-size: 12px; color: var(--faint); }
-
-.station { margin-bottom: var(--s-6); scroll-margin-top: 130px; }
-.station__head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; width: 100%; margin: 0 0 10px; padding: 4px 4px;
-  background: none; border: 0; border-radius: var(--r-sm); text-align: left;
-}
-.station__head h2 {
-  margin: 0; font-size: 12px; font-weight: 720; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--muted);
-}
-.station__head > span {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11.5px; color: var(--faint); font-weight: 620;
-}
-.chev {
-  width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2;
-  stroke-linecap: round; stroke-linejoin: round; transition: transform .15s;
-}
-.station__head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
-
-.cards { display: grid; gap: var(--s-2); }
-
-/* ---------- item card ---------- */
-
-.card {
-  padding: var(--s-4); border-radius: var(--r-xl);
-  background: var(--surface); border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  cursor: pointer; transition: transform .12s, box-shadow .12s;
-}
-.card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-
-.card__top { display: flex; align-items: flex-start; gap: 12px; }
-.card__id { min-width: 0; flex: 1; }
-.card__name { margin: 0; font-size: 15.5px; font-weight: 680; line-height: 1.3;
-              letter-spacing: -.015em; }
-.card__sub {
-  margin: 2px 0 0; font-size: 12px; color: var(--faint);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
-}
-
-/* Four tiles: icon, number, word. Auto-fit rather than a fixed four columns so
-   the row folds to 2x2 on a narrow phone instead of crushing "Calories" into
-   three characters. */
-/* Tiles cap out rather than stretching: at full width on a desktop card each
-   one became a 200px box around a 17px icon, which reads as a mistake. */
-/* The one thing on the card with real size. 32px against the macros' 13px is a
-   jump you read before you read anything, which is the whole point -- at four
-   identical tiles there was nothing to look at first. */
-.lead {
-  display: flex; align-items: baseline; gap: var(--s-2); margin-top: var(--s-3);
-}
-.lead__ic {
-  width: 20px; height: 20px; flex: none; fill: none; stroke: var(--cal-ink);
-  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; align-self: center;
-}
-.lead b {
-  font-size: var(--t-hero); font-weight: 700; letter-spacing: -.04em;
-  line-height: .95; font-variant-numeric: tabular-nums;
-}
-.lead span {
-  font-size: var(--t-xs); font-weight: 650; color: var(--faint);
-  text-transform: uppercase; letter-spacing: .1em;
-}
-
-.stats {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-2); margin-top: var(--s-3);
-}
-.stat {
-  display: flex; align-items: baseline; justify-content: center; gap: 5px;
-  padding: var(--s-2) 6px; border-radius: var(--r-sm); background: var(--tile);
-  min-width: 0;
-}
-.stat b { font-size: var(--t-sm); font-weight: 700; letter-spacing: -.02em;
-          font-variant-numeric: tabular-nums; }
-.stat span { font-size: var(--t-xs); font-weight: 600; color: var(--faint);
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Colour rides the figure now that the glyph is gone. The word beside it is
-   still what carries the meaning. */
-.stat--carb b { color: var(--carbs-ink); }
-.stat--protein b { color: var(--protein-ink); }
-.stat--fat b { color: var(--fat-ink); }
-.stat--cal .stat__ic { stroke: var(--cal-ink); }
-.stat--carb .stat__ic { stroke: var(--carbs-ink); }
-.stat--protein .stat__ic { stroke: var(--protein-ink); }
-.stat--fat .stat__ic { stroke: var(--fat-ink); }
-
-.card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-                margin-top: var(--s-3); }
-.badge {
-  font-size: 11px; font-weight: 660; padding: 3px 9px; border-radius: 999px;
-  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-}
-.badge--diet { background: var(--accent-soft); color: var(--accent); }
-.badge--warn { background: var(--warn-bg); color: var(--warn-text); }
-/* Outlined, not filled: allergens have to stay legible without competing with
-   the diet badges, which are the thing most people are scanning for. */
-.badge--allergen { border: 1px solid var(--border-strong); color: var(--muted); font-weight: 600; }
-.badge--unknown { border: 1px dashed var(--border-strong); color: var(--muted); font-weight: 600; }
-
-/* Visible to screen readers only: the macro strip is abbreviated on screen, so
-   the spoken version carries the full words. */
 .sr {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-.add {
+/* Every press feedback, expand and sheet transition reads this. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--s4); }
+
+/* =========================================================================
+   Primitives: Pill, Card, MacroBar, SegmentedControl, Sheet
+   ========================================================================= */
+
+/* ---- Pill ---- */
+.pill {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: 4px var(--s2); border-radius: var(--r-pill);
+  font-size: var(--t-xs); font-weight: 600; line-height: 1.4;
+  white-space: nowrap; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.pill--diet    { background: var(--good-wash); color: var(--good); }
+.pill--allergen{ border: 1px solid var(--border-control); color: var(--text-2); }
+.pill--unknown { border: 1px dashed var(--border-control); color: var(--text-3); }
+.pill--warn    { background: var(--warn-wash); color: var(--warn); }
+
+/* ---- Card ---- */
+.card {
   position: relative;
-  width: 34px; height: 34px; flex: none; border-radius: 11px; margin-top: 1px;
-  border: 0; background: var(--surface-2); color: var(--muted);
-  font-size: 17px; line-height: 1; display: grid; place-items: center; transition: .12s;
-  touch-action: manipulation;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: var(--s4);
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-/* The button reads as 36px but takes taps across the full 44px minimum, so it
-   does not need to grow and stretch every row in a 300-item list to do it. */
-.add::after { content: ""; position: absolute; inset: -4px; }
-.add:hover { background: var(--track); color: var(--text); }
-.add[data-in="1"] { background: var(--ink); color: var(--on-ink); }
+.card:hover { border-color: var(--border-control); }
+.card:active { transform: scale(var(--press)); }
 
-.empty { text-align: center; padding: 56px 20px; color: var(--muted); }
-.empty h2 { margin: 0 0 6px; font-size: 16px; color: var(--text); }
-.empty p { margin: 0 auto; max-width: 46ch; font-size: 13.5px; line-height: 1.5; }
-
-.gi {
-  width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor;
-  stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round;
+/* ---- MacroBar ----
+   A dot, a value and the word. The dot carries the hue, the word carries the
+   meaning: colour is never the only thing saying which macro this is. */
+.macros { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-top: var(--s3); }
+.macro { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); }
+.macro__dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  align-self: center;
 }
+.macro--carbs   .macro__dot { background: var(--carbs); }
+.macro--protein .macro__dot { background: var(--protein); }
+.macro--fat     .macro__dot { background: var(--fat); }
+.macro__val   { font-weight: 650; font-variant-numeric: tabular-nums; }
+.macro__label { color: var(--text-3); }
 
-.notice {
-  display: flex; gap: 9px; padding: 11px 13px; margin-bottom: 16px;
-  border-radius: var(--r-md); background: var(--warn-bg); color: var(--warn-text);
-  border: 1px solid var(--warn-border); font-size: 12.5px; line-height: 1.45;
+/* ---- SegmentedControl ---- */
+.segmented {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: var(--s1); padding: var(--s1);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-ctl);
 }
-.notice > .gi { width: 17px; height: 17px; margin-top: 1px; }
-
-.resulthead {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin: 0 2px 12px; font-size: 12.5px; color: var(--muted);
+.segmented button {
+  min-height: var(--tap); padding: var(--s2) var(--s1);
+  border-radius: calc(var(--r-ctl) - 5px);
+  font-size: var(--t-sm); font-weight: 600; color: var(--text-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
-.resulthead strong { color: var(--text); font-weight: 680; }
+.segmented button:hover:not([aria-selected="true"]):not(:disabled) { color: var(--text); }
+/* Selected is weight + fill, not hue alone. */
+.segmented button[aria-selected="true"] {
+  background: var(--accent); color: var(--on-accent); font-weight: 700;
+}
+.segmented button:disabled { opacity: .38; cursor: default; }
 
-
-/* ---------- sheets ---------- */
-
+/* ---- BottomSheet ----
+   <dialog> gives modality, the top layer and Escape for free; the focus trap
+   and the return of focus are the browser's too. What is added here is the
+   slide, the grab handle and the safe-area padding. */
 .sheet {
-  width: min(560px, calc(100vw - 28px)); max-height: 86vh; padding: 0;
-  border: 1px solid var(--border); border-radius: var(--r-xl);
-  background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
-  overflow: hidden;
+  width: 100%; max-width: 560px; margin: auto auto 0; padding: 0;
+  border: 0; border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  background: var(--surface); color: var(--text);
+  max-height: 88dvh; overflow: hidden;
+  box-shadow: 0 -1px 0 var(--border);
 }
-.sheet::backdrop { background: rgba(8,12,18,.45); backdrop-filter: blur(2px); }
-.sheet__body { overflow-y: auto; max-height: 86vh; padding: 20px; }
-.sheet__head { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
-.sheet__head h2 { margin: 0 0 4px; font-size: 18px; font-weight: 680; line-height: 1.25;
-                  letter-spacing: -.015em; }
-.sheet__head p { margin: 0; font-size: 12.5px; color: var(--muted); }
-.sheet__close {
-  border: 0; background: var(--surface-2); border-radius: var(--r-sm);
-  width: 30px; height: 30px; flex: none; font-size: 15px; color: var(--muted);
-  display: grid; place-items: center;
-}
+.sheet::backdrop { background: rgba(0, 0, 0, .64); }
+.sheet[open] { animation: sheet-in var(--dur) var(--ease); }
+@keyframes sheet-in { from { transform: translateY(12px); opacity: .6; } }
 
-/* filter sheet */
-.fgroup { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.fgroup:first-of-type { border-top: 0; }
-.fgroup > h3 {
-  margin: 0 0 10px; font-size: 11px; font-weight: 750; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--muted);
+.sheet__body { display: flex; flex-direction: column; max-height: 88dvh; }
+.sheet__grip {
+  width: 36px; height: 4px; border-radius: var(--r-pill);
+  background: var(--border-control); margin: var(--s2) auto 0; flex: none;
 }
-.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.field { display: grid; gap: 5px; }
-.field > span { font-size: 12px; font-weight: 620; color: var(--muted); }
-.field input, .field select {
-  padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--border-strong);
-  background: var(--surface-2); width: 100%;
-  min-height: var(--tap, 44px);
-  font-size: 16px;   /* same reason: no zoom-on-focus */
+.sheet__head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s3); padding: var(--s3) var(--s4) var(--s3);
+  border-bottom: 1px solid var(--border); flex: none;
 }
-.chipset__row { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 560;
-  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--muted);
-}
-.chip[aria-pressed="true"] { background: var(--protein); border-color: var(--protein); color: #fff; }
-.chip--diet[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
-
-.check { display: flex; align-items: center; gap: 8px; margin-top: 11px; font-size: 13px; }
-.check input { width: 15px; height: 15px; accent-color: var(--ink); }
-.hint { margin: 7px 0 0; font-size: 11.5px; color: var(--faint); line-height: 1.45; }
-
+.sheet__head h2 { font-size: var(--t-lg); font-weight: 700; letter-spacing: -.02em; }
+.sheet__head p  { margin-top: 2px; font-size: var(--t-sm); color: var(--text-3); }
+.sheet__content { padding: var(--s4); overflow-y: auto; }
 .sheet__foot {
-  position: sticky; bottom: -20px; margin: 20px -20px -20px; padding: 14px 20px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: var(--surface); border-top: 1px solid var(--border);
+  padding: var(--s3) var(--s4) calc(var(--s4) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border); flex: none; display: flex; gap: var(--s2);
+}
+.sheet__foot .btn { flex: 1; }
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  min-height: var(--tap); padding: var(--s3) var(--s4);
+  border-radius: var(--r-ctl); font-size: var(--t-md); font-weight: 650;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
+}
+.btn:active { transform: scale(var(--press)); }
+.btn--primary { background: var(--accent); color: var(--on-accent); }
+.btn--primary:hover { background: var(--accent-press); }
+.btn--ghost { background: var(--card); color: var(--text); border: 1px solid var(--border-control); }
+.btn--ghost:hover { background: var(--card-2); }
+.btn--block { width: 100%; }
+.btn:disabled { opacity: .38; cursor: default; transform: none; }
+
+/* ---- icon button ---- */
+.iconbtn {
+  display: inline-grid; place-items: center; flex: none;
+  width: var(--tap); height: var(--tap); border-radius: var(--r-ctl);
+  color: var(--text-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.iconbtn:hover { background: var(--card); color: var(--text); }
+.iconbtn:active { transform: scale(var(--press)); }
+.gi { width: 20px; height: 20px; fill: none; stroke: currentColor;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed; left: 50%; translate: -50% 0;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s3));
+  z-index: 80; display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s3) var(--s3) var(--s4);
+  background: var(--card); border: 1px solid var(--border-control);
+  border-radius: var(--r-pill); box-shadow: 0 8px 28px rgba(0,0,0,.5);
+  font-size: var(--t-sm); max-width: calc(100vw - var(--s7));
+}
+.toast[hidden] { display: none; }
+.toast__msg { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast__undo {
+  flex: none; padding: var(--s1) var(--s2); border-radius: var(--r-pill);
+  color: var(--accent-text); font-weight: 700; font-size: var(--t-sm);
+}
+.toast__undo:hover { background: var(--accent-wash); }
+.toast:not([hidden]) { animation: toast-in var(--dur) var(--ease); }
+@keyframes toast-in { from { transform: translate(-50%, 8px); opacity: 0; } }
+
+/* =========================================================================
+   Top bar + date strip (both sticky on mobile)
+   ========================================================================= */
+
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+}
+.topbar__row {
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: var(--tap); padding: var(--s2) 0;
 }
 
-/* detail sheet */
-.bignums { display: flex; gap: 8px; margin: 16px 0; }
-.bignum {
-  flex: 1; padding: 11px 12px; border-radius: var(--r-md);
-  background: var(--surface-2); border: 1px solid var(--border);
+/* The hall selector: compact, tappable, opens a sheet. */
+.hallbtn {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2);
+  min-height: var(--tap); padding: 0 var(--s3);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-ctl); text-align: left;
+  transition: border-color var(--dur) var(--ease);
 }
-.bignum b { display: block; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
-            letter-spacing: -.02em; }
-.bignum span { font-size: 10.5px; color: var(--muted); text-transform: uppercase;
-               letter-spacing: .05em; font-weight: 650; }
-.bignum--p b { color: var(--protein); }
-.bignum--c b { color: var(--carbs); }
-.bignum--f b { color: var(--fat); }
-
-.sheet h3 {
-  margin: 20px 0 8px; font-size: 11px; font-weight: 750;
-  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+.hallbtn:hover { border-color: var(--border-control); }
+.hallbtn:active { transform: scale(var(--press)); }
+.hallbtn__name {
+  flex: 1; min-width: 0; font-size: var(--t-md); font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.nutrients { width: 100%; border-collapse: collapse; font-size: 13px; }
-.nutrients td { padding: 7px 0; border-bottom: 1px solid var(--border); }
-.nutrients td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 560; }
-.nutrients tr:last-child td { border-bottom: 0; }
-.nutrients .none { color: var(--faint); font-weight: 400; }
+.hallbtn__count {
+  flex: none; padding: 2px var(--s2); border-radius: var(--r-pill);
+  background: var(--card-2); color: var(--text-2);
+  font-size: var(--t-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.hallbtn .gi { flex: none; width: 16px; height: 16px; color: var(--text-3); }
 
-.served { display: grid; gap: 5px; font-size: 12.5px; }
-.served div { display: flex; gap: 8px; color: var(--muted); }
-.served b { color: var(--text); font-weight: 620; min-width: 96px; }
-.ingredients { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin: 0; }
-.sheet a { color: var(--accent); font-size: 12.5px; }
-.sheet code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 5px; padding: 1px 5px; white-space: nowrap;
+.brandmark {
+  width: 26px; height: 26px; flex: none; border-radius: 7px;
+  background: conic-gradient(var(--accent) 0 25%, var(--gold) 25% 50%,
+                             var(--accent) 50% 75%, var(--gold) 75% 100%);
 }
 
-.plateitem {
-  display: flex; align-items: center; gap: 10px; padding: 10px 0;
-  border-bottom: 1px solid var(--border); font-size: 13.5px;
+/* ---- date strip: snap scrolling, today auto-centred ---- */
+.dates {
+  display: flex; gap: var(--s2); overflow-x: auto; scrollbar-width: none;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  /* Bleed to the screen edge, then pad inside, so a scrolled strip runs to the
+     edge instead of stopping short of it. */
+  margin: 0 calc(var(--s4) * -1); padding: 0 var(--s4) var(--s3);
+  scroll-padding-inline: var(--s4);
 }
-.plateitem:last-of-type { border-bottom: 0; }
-.plateitem__meta { flex: 1; min-width: 0; }
-.plateitem__meta p { margin: 2px 0 0; font-size: 11.5px; color: var(--faint); }
-.plateitem strong { font-weight: 620; }
-.remove { border: 0; background: none; color: var(--faint); font-size: 15px; padding: 0 6px; }
-.remove:hover { color: var(--protein); }
+.dates::-webkit-scrollbar { display: none; }
+.day {
+  flex: none; scroll-snap-align: center;
+  min-width: 52px; min-height: var(--tap);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; padding: var(--s2) var(--s2);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-ctl); position: relative;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.day__dow { font-size: var(--t-xs); font-weight: 600; color: var(--text-3); }
+.day__num { font-size: var(--t-md); font-weight: 700; font-variant-numeric: tabular-nums; }
+.day:hover:not([aria-selected="true"]):not(:disabled) { border-color: var(--border-control); }
+/* Selected: fill AND weight AND border, so it is not colour alone. */
+.day[aria-selected="true"] {
+  background: var(--accent); border-color: var(--accent);
+}
+.day[aria-selected="true"] .day__dow { color: rgba(255,255,255,.82); }
+.day[aria-selected="true"] .day__num { color: var(--on-accent); font-weight: 800; }
+.day:disabled { opacity: .34; cursor: default; }
+/* The one place gold is used. */
+.day__today {
+  position: absolute; bottom: 5px; left: 50%; translate: -50% 0;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--gold);
+}
+.day[aria-selected="true"] .day__today { background: var(--on-accent); }
 
-/* ---------- narrow ---------- */
+.weeknav { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) 0 var(--s2); }
+.weeknav__label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--s2); }
+.weeknav__label b { font-size: var(--t-md); font-weight: 700; letter-spacing: -.01em; }
+.weeknav__label span { font-size: var(--t-sm); color: var(--text-3); }
+.weeknav__arrow {
+  flex: none; width: var(--tap); height: var(--tap); display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: var(--r-ctl);
+  background: var(--card); color: var(--text-2);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.weeknav__arrow:hover:not(:disabled) { border-color: var(--border-control); color: var(--text); }
+.weeknav__arrow:disabled { opacity: .34; cursor: default; }
 
-@media (max-width: 620px) {
-  .card { padding: 13px 13px 12px; }
-  .sheet { width: 100vw; max-width: none; max-height: 92vh; margin: auto 0 0;
-           border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0; }
-  .sheet__body { max-height: 92vh; padding-bottom: 28px; }
-  .bignums { flex-wrap: wrap; }
-  .bignum { flex: 1 1 calc(50% - 4px); }
-  .filterbtn { padding: 8px 11px; gap: 5px; }
-  .search input { padding-right: 30px; }
+/* ---- controls row ---- */
+.controls { display: grid; gap: var(--s3); padding-top: var(--s3); padding-bottom: var(--s4); }
+.searchrow { display: flex; gap: var(--s2); }
+.search { position: relative; flex: 1; display: flex; align-items: center; }
+.search .gi--search { position: absolute; left: var(--s3); color: var(--text-3); pointer-events: none; width: 17px; height: 17px; }
+.search input {
+  width: 100%; min-height: var(--tap); padding: 0 40px 0 38px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-ctl); color: var(--text);
+  font-size: 16px;            /* below 16 and iOS zooms in on focus */
+}
+.search input::placeholder { color: var(--text-3); }
+
+/* Shown only where there is a sidebar to label. */
+.sidebar__label { display: none; }
+.search input::-webkit-search-cancel-button { display: none; }
+.search__clear {
+  position: absolute; right: 2px; width: var(--tap); height: var(--tap);
+  display: grid; place-items: center; border-radius: var(--r-ctl); color: var(--text-3);
+}
+.search__clear:hover { color: var(--text); background: var(--card-2); }
+
+.filterbtn {
+  flex: none; display: inline-flex; align-items: center; gap: var(--s2);
+  min-height: var(--tap); padding: 0 var(--s4); border-radius: var(--r-ctl);
+  background: var(--card); border: 1px solid var(--border);
+  font-size: var(--t-sm); font-weight: 650; color: var(--text);
+  transition: border-color var(--dur) var(--ease);
+}
+.filterbtn:hover { border-color: var(--border-control); }
+.filterbtn__count {
+  min-width: 20px; padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--on-accent);
+  font-size: var(--t-xs); font-weight: 800; font-variant-numeric: tabular-nums;
 }
 
-/* ---------- tab bar ---------- */
+/* =========================================================================
+   Stations + item cards
+   ========================================================================= */
 
-/* Three destinations, pinned. Browse answers "what is there", Build answers
-   "what should I have", Plate answers "what did I pick" -- they are peers, and
-   a tab bar says that in a way a link buried in a header cannot. */
+.resultline {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); margin-bottom: var(--s4);
+  font-size: var(--t-sm); color: var(--text-3);
+}
+.resultline strong { color: var(--text); font-weight: 650; }
+.linkbtn {
+  display: inline-flex; align-items: center; min-height: var(--tap);
+  color: var(--text-2); font-size: var(--t-sm); font-weight: 620;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.linkbtn:hover { color: var(--text); }
+
+.station { margin-bottom: var(--s6); }
+/* Sticky while its own section scrolls past. */
+.station__head {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  min-height: var(--tap); padding: var(--s2) 0;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  text-align: left;
+}
+.station__name {
+  flex: 1; min-width: 0; font-size: var(--t-sm); font-weight: 700;
+  letter-spacing: .02em; color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.station__count {
+  flex: none; padding: 2px var(--s2); border-radius: var(--r-pill);
+  background: var(--card); color: var(--text-3);
+  font-size: var(--t-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.station__head .gi { flex: none; width: 16px; height: 16px; color: var(--text-3);
+                     transition: transform var(--dur) var(--ease); }
+.station__head[aria-expanded="false"] .gi { transform: rotate(-90deg); }
+
+.cards { display: grid; gap: var(--s2); }
+
+/* ---- item card ---- */
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); }
+.item__main { min-width: 0; text-align: left; }
+.item__row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.item__name {
+  font-size: var(--t-md); font-weight: 650; line-height: 1.3; letter-spacing: -.01em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.item__serving { margin-top: 2px; font-size: var(--t-sm); color: var(--text-3); }
+
+/* Calories: the hero number, tabular so columns hold still across cards. */
+.item__cal { flex: none; text-align: right; line-height: 1; }
+.item__cal b {
+  display: block; font-size: var(--t-hero); font-weight: 650;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.item__cal span { display: block; margin-top: 3px; font-size: var(--t-xs); color: var(--text-3); }
+
+.item__tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) 6px; margin-top: var(--s3); }
+
+.addbtn {
+  flex: none; align-self: start;
+  width: var(--tap); height: var(--tap); border-radius: var(--r-ctl);
+  display: grid; place-items: center;
+  background: var(--card-2); color: var(--text-2);
+  border: 1px solid transparent;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
+}
+.addbtn:hover { background: var(--accent-wash); color: var(--accent-text); }
+.addbtn:active { transform: scale(var(--press)); }
+/* On the plate: fill plus a tick, so the state is not carried by colour alone. */
+.addbtn[aria-pressed="true"] {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+}
+
+/* ---- empty + loading ---- */
+.empty {
+  text-align: center; padding: var(--s8) var(--s5);
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r-card);
+}
+.empty__icon {
+  width: 48px; height: 48px; margin: 0 auto var(--s3); border-radius: 50%;
+  display: grid; place-items: center; background: var(--card-2); color: var(--text-3);
+}
+.empty h2 { font-size: var(--t-lg); font-weight: 700; margin-bottom: var(--s2); }
+.empty p { max-width: 36ch; margin: 0 auto; font-size: var(--t-sm); color: var(--text-2); line-height: 1.55; }
+.empty .btn { margin-top: var(--s4); }
+
+.sk { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-card); padding: var(--s4); }
+.sk__line, .sk__block {
+  display: block; border-radius: 6px;
+  background: linear-gradient(90deg, var(--card-2) 0%, var(--border) 50%, var(--card-2) 100%);
+  background-size: 200% 100%; animation: sk 1.3s var(--ease) infinite;
+}
+.sk__line--name { width: 58%; height: 15px; }
+.sk__line--sub  { width: 30%; height: 11px; margin-top: var(--s2); }
+.sk__block      { height: 40px; margin-top: var(--s3); border-radius: var(--r-ctl); }
+.sk__line--head { width: 120px; height: 12px; }
+@keyframes sk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sk__line, .sk__block { animation: none; background: var(--card-2); }
+}
+
+/* =========================================================================
+   Bottom nav
+   ========================================================================= */
+
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: saturate(180%) blur(16px);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
 }
-/* Phone-width even on a desktop: a tab stretched to 300px reads as a banner,
-   not a control, and the thumb never goes there anyway. */
-.tabbar__inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
-                 max-width: 440px; margin: 0 auto; padding: 6px 16px 7px; }
+.tabbar__inner {
+  max-width: 560px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1);
+  padding: var(--s1) var(--s3) var(--s2);
+}
 .tab {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 7px 4px 6px; border: 0; background: none; border-radius: var(--r-md);
-  color: var(--faint); transition: color .12s, background .12s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: var(--nav-h); justify-content: center;
+  border-radius: var(--r-ctl); color: var(--text-3);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.tab svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.9;
-           stroke-linecap: round; stroke-linejoin: round; }
-.tab span { font-size: 11px; font-weight: 650; letter-spacing: -.005em; }
-.tab[aria-selected="true"] { color: var(--text); background: var(--surface); }
-.tab[aria-selected="true"] svg { stroke-width: 2.2; }
-.tab__count {
-  position: absolute; top: 2px; right: 50%; translate: 22px 0;
-  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
-  background: var(--ink); color: var(--on-ink);
-  font-size: 10.5px; font-weight: 750; line-height: 17px; text-align: center;
+.tab:active { transform: scale(var(--press)); }
+.tab__label { font-size: var(--t-xs); font-weight: 650; }
+.tab[aria-current="page"] { color: var(--accent-text); background: var(--accent-wash); }
+.tab[aria-current="page"] .gi { stroke-width: 2.2; }
+.tab__meta {
+  font-size: 10px; font-weight: 700; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
-/* The bar is fixed, so every scrolling view has to end above it. */
-body { padding-bottom: 82px; }
-
-/* ---------- build ---------- */
-
-.view { padding-top: 4px; }
-
-.buildhead {
-  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
-  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 14px;
+.tab[aria-current="page"] .tab__meta { color: var(--accent-text); }
+.tab__badge {
+  position: absolute; top: 4px; left: 50%; translate: 10px 0;
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--on-accent);
+  font-size: 10px; font-weight: 800; line-height: 17px; text-align: center;
 }
-.buildhead__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.buildhead__row h2 { margin: 0; font-size: 18px; font-weight: 740; letter-spacing: -.025em; }
-.buildhead__row p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
-.buildhead__con { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
-.buildhead__go { width: 100%; margin-top: 14px; }
+.tab__iconwrap { position: relative; display: grid; place-items: center; }
 
-.goalbtn {
-  display: inline-flex; align-items: center; gap: 7px; flex: none;
-  padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border-strong);
-  background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 650;
+/* =========================================================================
+   Chips (filter sheet), goal bars, plate + build views
+   ========================================================================= */
+
+.chiprow { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.chip {
+  min-height: var(--tap); padding: var(--s2) var(--s3); border-radius: var(--r-pill);
+  border: 1px solid var(--border-control); background: transparent;
+  font-size: var(--t-sm); font-weight: 600; color: var(--text-2);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
 }
-.goalbtn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; }
-.goalbtn:hover { background: var(--surface-2); }
-
-.targets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
-.target {
-  flex: 1 1 88px; padding: 9px 11px; border-radius: var(--r-md); background: var(--tile);
-  line-height: 1.15;
+.chip:hover { color: var(--text); }
+/* Selected chips carry a tick as well as a fill. */
+.chip[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent);
+  color: var(--on-accent); font-weight: 700;
 }
-.target b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
-            font-variant-numeric: tabular-nums; }
-.target span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
+.chip[aria-pressed="true"] .gi { width: 14px; height: 14px; }
+.chip__tick { display: none; }
+.chip[aria-pressed="true"] .chip__tick { display: block; }
 
-.plans { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-.plan {
-  padding: 15px 15px 14px; border-radius: var(--r-xl); background: var(--surface);
-  border: 1px solid var(--border); box-shadow: var(--shadow);
+.fgroup + .fgroup { margin-top: var(--s6); }
+.fgroup h3 {
+  font-size: var(--t-xs); font-weight: 700; letter-spacing: .06em;
+  color: var(--text-3); margin-bottom: var(--s3);
 }
-.plan__head { display: flex; align-items: baseline; justify-content: space-between;
-              gap: 10px; min-width: 0; }
-.plan__head h3 { margin: 0; font-size: 15px; font-weight: 720; letter-spacing: -.02em; }
-.plan__cal { flex: none; font-size: 12px; font-weight: 620; color: var(--faint);
-             font-variant-numeric: tabular-nums; }
-.plan__items { list-style: none; margin: 11px 0 0; padding: 0;
-               display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
-
-.planitem {
-  display: flex; align-items: center; gap: 12px; padding: 9px 10px; min-width: 0;
-  border-radius: var(--r-sm); background: var(--tile); cursor: pointer;
+.hint { margin-top: var(--s3); font-size: var(--t-sm); color: var(--text-3); line-height: 1.5; }
+.field { display: block; }
+.field span { display: block; margin-bottom: 6px; font-size: var(--t-sm); color: var(--text-2); }
+.field input, .field select {
+  width: 100%; min-height: var(--tap); padding: 0 var(--s3);
+  background: var(--card); border: 1px solid var(--border-control);
+  border-radius: var(--r-ctl); color: var(--text);
+  font-size: 16px;   /* no iOS zoom */
 }
-.planitem:hover { background: var(--surface-2); }
-.planitem__id { min-width: 0; flex: 1; }
-.planitem__id b { display: block; font-size: 13.5px; font-weight: 640; line-height: 1.3;
-                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planitem__id span { display: block; font-size: 11px; color: var(--faint);
-                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planitem__cal { flex: none; font-size: 13.5px; font-weight: 700;
-                 font-variant-numeric: tabular-nums; }
+.fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+.check { display: flex; align-items: flex-start; gap: var(--s2); margin-top: var(--s3);
+         font-size: var(--t-sm); color: var(--text-2); }
+.check input { width: 22px; height: 22px; flex: none; accent-color: var(--accent);
+               font-size: 16px; margin: 0; }
 
-.plan__bars { display: grid; gap: 9px; margin-top: 13px; }
-.plan__use { width: 100%; margin-top: 13px; }
-
-/* A bar rather than a ring: three or four of these stack, and a row of rings
-   makes you read four separate dials to answer one question. */
-.gbar__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-             margin-bottom: 4px; }
-.gbar__top span { font-size: 11.5px; font-weight: 620; color: var(--muted); }
-.gbar__top b { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.gbar__top i { font-style: normal; font-weight: 600; color: var(--faint); }
-.gbar__track { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
-/* The colour says how you are doing, not which nutrient it is -- the label
-   already says that. A full red bar at exactly the target read as a failure
-   when it is the thing you asked for. */
-.gbar__fill { height: 100%; border-radius: 999px; background: var(--border-strong);
-              transition: width .25s; }
-/* Three states, not four. The bar's length already says how close you are, so
-   a separate "nearly there" colour only added a muddy olive between grey and
-   green that meant nothing on its own. */
-.gbar[data-state="under"] .gbar__fill,
-.gbar[data-state="near"] .gbar__fill { background: var(--border-strong); }
-.gbar[data-state="ok"] .gbar__fill { background: var(--accent); }
-.gbar[data-state="ok"] .gbar__top b { color: var(--accent); }
-/* Over a ceiling is a different kind of fact from under a floor, so it does not
-   get to look like ordinary progress. */
-.gbar[data-state="over"] .gbar__fill { background: repeating-linear-gradient(
-    45deg, var(--warn-text), var(--warn-text) 4px, transparent 4px, transparent 8px); }
-.gbar[data-state="over"] .gbar__top b { color: var(--warn-text); }
-
-/* ---------- plate view ---------- */
-
-.platehead {
-  padding: 16px; border-radius: var(--r-xl); background: var(--surface);
-  border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 12px;
+/* ---- goal bars ---- */
+.gbar + .gbar { margin-top: var(--s3); }
+.gbar__top { display: flex; align-items: baseline; justify-content: space-between;
+             gap: var(--s2); margin-bottom: 6px; }
+.gbar__top span { font-size: var(--t-sm); color: var(--text-2); }
+.gbar__top b { font-size: var(--t-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+.gbar__top i { font-style: normal; font-weight: 500; color: var(--text-3); }
+.gbar__track { position: relative; height: 6px; border-radius: var(--r-pill);
+               background: var(--card-2); overflow: visible; }
+.gbar__fill { height: 100%; border-radius: var(--r-pill); background: var(--border-control);
+              transition: width 300ms var(--ease); }
+.gbar[data-state="ok"] .gbar__fill { background: var(--good); }
+.gbar[data-state="ok"] .gbar__top b { color: var(--good); }
+.gbar[data-state="over"] .gbar__fill {
+  background: repeating-linear-gradient(45deg, var(--warn) 0 4px, transparent 4px 8px);
 }
-.platehead__row { display: flex; align-items: flex-start; justify-content: space-between;
-                  gap: 12px; margin-bottom: 14px; }
-.platehead__row h2 { margin: 0; font-size: 24px; font-weight: 760; letter-spacing: -.03em;
-                     font-variant-numeric: tabular-nums; }
-.platehead__row p { margin: 2px 0 0; font-size: 12.5px; color: var(--faint); }
-.platehead__clear { width: 100%; margin-top: 14px; }
-.plateitems { list-style: none; margin: 0; padding: 0;
-              display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
-.plateitems .planitem { background: var(--surface); border: 1px solid var(--border); }
-
-/* ---------- plate: a day, by meal ---------- */
-
-.daymacros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 13px; }
-.daymacro { padding: 9px 11px; border-radius: var(--r-md); background: var(--tile); line-height: 1.15; }
-.daymacro b { display: block; font-size: 16px; font-weight: 720; letter-spacing: -.02em;
-              font-variant-numeric: tabular-nums; }
-.daymacro span { font-size: 10.5px; font-weight: 600; color: var(--faint); }
-.daymacro--p b { color: var(--protein-ink); }
-.daymacro--c b { color: var(--carbs-ink); }
-.daymacro--f b { color: var(--fat-ink); }
-
-.meals { display: grid; gap: 9px; }
-
-.meal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden;
-}
-/* A meal you have not eaten yet still holds its place, so the day reads as
-   three slots with gaps rather than a list that silently omits them. */
-.meal--empty { background: none; box-shadow: none; border-style: dashed; }
-
-.meal__head {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 13px 14px; border: 0; background: none; text-align: left;
-  min-height: 52px;
-}
-.meal__head:disabled { cursor: default; }
-.meal__name { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; flex: none; }
-.meal__sum { flex: 1; min-width: 0; font-size: 12.5px; color: var(--faint);
-             font-variant-numeric: tabular-nums; text-align: right;
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meal--empty .meal__sum { font-style: italic; }
-.meal__count {
-  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
-  background: var(--tile); color: var(--muted);
-  font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
-}
-.meal__head .chev {
-  flex: none; width: 15px; height: 15px; fill: none; stroke: var(--faint);
-  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
-  transition: transform .15s;
-}
-.meal__head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
-
-.meal__body { padding: 0 14px 13px; border-top: 1px solid var(--border); }
-.meal__body .plateitems { margin-top: 12px; }
-.meal__body .plan__bars { margin-top: 13px; }
-.meal__clear { width: 100%; margin-top: 12px; }
-
-/* ---------- loading ---------- */
-
-/* Skeletons match the real card's box exactly, so the swap does not shift the
-   page under a thumb that is already reaching for something. */
-.sk {
-  padding: 14px 14px 13px; border-radius: var(--r-xl);
-  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
-}
-.sk__line, .sk__tiles {
-  display: block; border-radius: 6px;
-  background: linear-gradient(90deg, var(--surface-2) 0%, var(--track) 50%, var(--surface-2) 100%);
-  background-size: 200% 100%;
-  animation: sk 1.25s ease-in-out infinite;
-}
-.sk__line--head { width: 120px; height: 11px; }
-.sk__line--name { width: 62%; height: 14px; }
-.sk__line--sub { width: 34%; height: 10px; margin-top: 8px; }
-.sk__tiles { height: 58px; margin-top: 12px; border-radius: var(--r-md); }
-
-@keyframes sk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-
-/* A shimmer is decoration; someone who has asked for less motion still needs
-   to know something is happening, so it holds a flat tone instead. */
-@media (prefers-reduced-motion: reduce) {
-  .sk__line, .sk__tiles { animation: none; background: var(--surface-2); }
-}
-
-
-/* ---------- display face ---------- */
-
-.brand h1,
-.weeknav__label b,
-.day strong,
-.station__head,
-.hall__head h2,
-.stat b,
-.platehead__row h2,
-.daymacro b,
-.plan__head h3,
-.planitem__cal,
-.buildhead__row h2,
-.target b,
-.meal__name,
-.bignum b,
-.gbar__top b,
-.sheet__head h2,
-.empty h2 {
-  font-family: var(--font-display);
-  font-feature-settings: "tnum" 1;   /* figures keep their column when they change */
-}
-
-/* Space Grotesk runs a little wide and heavy at the same nominal weight, so the
-   places that were tuned against the system face get their tracking back. */
-.brand h1 { letter-spacing: -.03em; }
-.platehead__row h2 { letter-spacing: -.035em; }
-.stat b { letter-spacing: -.025em; }
-
-/* The target notch: a hairline standing at the goal on every bar.
-
-   Hand-placed rather than inherited from anything -- the fill can only report
-   "full", so once you are over a ceiling the bar alone cannot tell you whether
-   you went over by two grams or by forty. The notch stays at the target while
-   the fill runs past it. */
-.gbar__track { position: relative; }
+.gbar[data-state="over"] .gbar__top b { color: var(--warn); }
+/* The target keeps its position once the fill runs past it. */
 .gbar__notch {
-  position: absolute; top: -2px; bottom: -2px; width: 2px;
-  translate: -1px 0; border-radius: 2px;
-  background: var(--surface);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 38%, transparent);
-}
-.gbar[data-state="over"] .gbar__notch {
-  background: var(--warn-text);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warn-text) 45%, transparent);
+  position: absolute; top: -3px; bottom: -3px; width: 2px; translate: -1px 0;
+  border-radius: 2px; background: var(--text-3);
 }
 
-/* While the first request is in flight the controls have nothing to show yet.
-   Holding their height stops the page shuffling downward the moment it does. */
-body[data-booting="1"] .weekbar,
-body[data-booting="1"] .toolbar { opacity: .45; }
-body[data-booting="1"] .weekdays { min-height: 46px; }
-body[data-booting="1"] .segmented { min-height: 40px; }
-body[data-booting="1"] .pills { min-height: 32px; }
+/* ---- build + plate ---- */
+.panel { background: var(--card); border: 1px solid var(--border);
+         border-radius: var(--r-card); padding: var(--s4); margin-bottom: var(--s4); }
+.panel__row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.panel__row h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -.02em; }
+.panel__row p { margin-top: 2px; font-size: var(--t-sm); color: var(--text-3); }
+.targets { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+.target { flex: 1 1 96px; padding: var(--s3); border-radius: var(--r-ctl); background: var(--card-2); }
+.target b { display: block; font-size: var(--t-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
+.target span { font-size: var(--t-xs); color: var(--text-3); }
 
-/* ---------- identity ---------- */
-
-/* A Maryland flag quarter, drawn in CSS. Four blocks of the state's red and
-   gold, which is what the university's own mark is built from.
-
-   This is the one piece of the page that exists purely because a person chose
-   it. No starter template produces it, and it is what stops the header reading
-   as "app title, top left" on a page that could otherwise belong to anything. */
-.brand { display: flex; align-items: center; gap: 11px; }
-.brand__mark {
-  width: 28px; height: 28px; flex: none; border-radius: 8px;
-  /* Quartered, the way the state flag is. Stacked linear-gradients each painted
-     over the last and left it solid gold; a conic sweep gives four true
-     quarters in one declaration. */
-  background: conic-gradient(
-    var(--brand) 0 25%, var(--gold) 25% 50%,
-    var(--brand) 50% 75%, var(--gold) 75% 100%);
-  box-shadow: inset 0 0 0 1px rgba(23, 19, 15, .14);
+.rows { display: grid; gap: var(--s1); margin-top: var(--s3); }
+.row {
+  display: flex; align-items: center; gap: var(--s3); width: 100%;
+  min-height: var(--tap); padding: var(--s2) var(--s3);
+  background: var(--card-2); border-radius: var(--r-ctl); text-align: left;
+  transition: background var(--dur) var(--ease);
 }
-.brand__text { min-width: 0; }
-.brand h1 { letter-spacing: -.03em; }
+.row:hover { background: var(--border); }
+.row__id { flex: 1; min-width: 0; }
+.row__id b { display: block; font-size: var(--t-sm); font-weight: 620;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__id span { display: block; font-size: var(--t-xs); color: var(--text-3);
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__cal { flex: none; font-size: var(--t-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* The current day carries the school's gold rather than a generic accent. */
-.day[data-today="1"]::after { background: var(--brand); }
-.day[data-today="1"][aria-selected="true"]::after { background: var(--gold); }
+.meal { background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--r-card); overflow: hidden; }
+.meal + .meal { margin-top: var(--s2); }
+.meal--empty { background: none; border-style: dashed; }
+.meal__head { display: flex; align-items: center; gap: var(--s3); width: 100%;
+              min-height: 56px; padding: var(--s3) var(--s4); text-align: left; }
+.meal__name { flex: none; font-size: var(--t-md); font-weight: 700; }
+.meal__sum { flex: 1; text-align: right; font-size: var(--t-sm); color: var(--text-3);
+             font-variant-numeric: tabular-nums; overflow: hidden;
+             text-overflow: ellipsis; white-space: nowrap; }
+/* Italic glyphs lean past their own box, so the final letter grazed the card
+   edge. A couple of pixels of inline padding is all it needs. */
+.meal--empty .meal__sum { font-style: italic; padding-inline-end: 3px; }
+.meal__head .gi { flex: none; width: 16px; height: 16px; color: var(--text-3);
+                  transition: transform var(--dur) var(--ease); }
+.meal__head[aria-expanded="false"] .gi { transform: rotate(-90deg); }
+.meal__body { padding: 0 var(--s4) var(--s4); border-top: 1px solid var(--border); }
+.meal__body > *:first-child { margin-top: var(--s3); }
 
-.gi--theme { width: 17px; height: 17px; }
+.daymacros { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); margin-top: var(--s4); }
+.daymacro { padding: var(--s3); border-radius: var(--r-ctl); background: var(--card-2); }
+.daymacro b { display: block; font-size: var(--t-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
+.daymacro span { font-size: var(--t-xs); color: var(--text-3); }
+.daymacro--protein b { color: var(--protein); }
+.daymacro--carbs b { color: var(--carbs); }
+.daymacro--fat b { color: var(--fat); }
 
-/* Selected states use the brand, so the loudest thing on screen is the school's
-   colour rather than undifferentiated black. */
-.pill[aria-selected="true"] {
-  background: var(--brand); border-color: var(--brand); color: #fff;
+.notice {
+  display: flex; gap: var(--s2); padding: var(--s3); margin-top: var(--s3);
+  border-radius: var(--r-ctl); background: var(--warn-wash);
+  border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent);
+  color: var(--warn); font-size: var(--t-sm); line-height: 1.45;
 }
-.pill[aria-selected="true"] small { color: rgba(255,255,255,.72); }
-.day[aria-selected="true"] { background: var(--brand); }
-.day[aria-selected="true"] span,
-.day[aria-selected="true"] strong { color: #fff; }
+.notice .gi { flex: none; width: 17px; height: 17px; margin-top: 1px; }
 
-:root[data-theme="dark"] .brand__mark {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+.nutrients { width: 100%; border-collapse: collapse; }
+.nutrients th, .nutrients td { padding: var(--s2) 0; border-bottom: 1px solid var(--border);
+                               font-size: var(--t-sm); }
+.nutrients th { text-align: left; font-weight: 500; color: var(--text-2); }
+.nutrients td { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* =========================================================================
+   Responsive. Mobile is the base above; these only add.
+   ========================================================================= */
+
+/* ---- Tablet: two columns, filters inline ---- */
+@media (min-width: 768px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+  .controls { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .controls .segmented { grid-column: 1 / -1; }
+  .quickchips { display: flex; }
 }
 
-/* "University of Maryland" is a long name and the header also carries the
-   mark and two controls. Below 420px the title steps down rather than
-   breaking across two lines and shoving the date out of the block. */
-@media (max-width: 420px) {
-  .brand h1 { font-size: 16.5px; }
-  .brand { gap: 9px; }
-  .brand__mark { width: 25px; height: 25px; }
-}
+/* ---- Desktop: sidebar + three columns, centred at 1280 ---- */
+@media (min-width: 1200px) {
+  .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); align-items: start;
+           max-width: var(--maxw); margin: 0 auto; }
 
-
-/* ---------- layout ---------- */
-
-/* Phone first: one column, controls at the top, tabs at the bottom. */
-.rail__top { padding: var(--s-3) 0 0; }
-.rail__brandrow { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
-.rail__actions { display: flex; gap: var(--s-2); }
-.railgroup + .railgroup { margin-top: var(--s-3); }
-.railgroup__label {
-  display: none;              /* on a phone the controls speak for themselves */
-  margin: 0 0 var(--s-2);
-  font-size: var(--t-xs); font-weight: 750; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--faint);
-}
-
-/* Desktop: a rail against the left edge and a working area beside it.
-
-   This is the point the whole thing kept failing on. Everything lived in a
-   940px box centred in the window, so on any real screen it was a ribbon
-   floating in empty space with no structure -- which is the layout every
-   generated app ships and the reason it reads as one. The rail holds what you
-   keep returning to and is anchored to an edge; the food gets the rest and is
-   laid out in columns rather than a single queue. */
-@media (min-width: 1000px) {
-  .shell {
-    display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .rail {
-    position: sticky; top: 0; height: 100vh;
-    display: flex; flex-direction: column; gap: var(--s-5);
-    padding: var(--s-5) 0 calc(var(--nav-rail, 76px) + var(--s-4));
-    overflow-y: auto;
-    background: var(--surface);
+  .sidebar {
+    position: sticky; top: 0; height: 100dvh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: var(--s5);
+    padding: var(--s5) var(--s4) calc(var(--nav-h) + var(--s5));
     border-right: 1px solid var(--border);
   }
-  .rail .wrap { max-width: none; padding: 0 var(--s-5); }
-
-  /* In a 300px rail the two buttons were taking the width that wrapped the
-     school's name onto two lines and the date onto three. They get their own
-     row; the name gets the rail. */
-  .rail__brandrow { flex-direction: column; align-items: stretch; gap: var(--s-3); }
-  .rail__actions { order: -1; justify-content: flex-end; }
-  .rail .brand__sub { white-space: normal; }
-  .rail .toolbar {
-    position: static; padding: 0; background: none; backdrop-filter: none;
+  .sidebar .controls { grid-template-columns: 1fr; padding: 0; }
+  .sidebar .searchrow { flex-direction: column; }
+  .sidebar .segmented { grid-auto-flow: row; grid-auto-columns: auto; }
+  .sidebar .filterbtn { justify-content: center; }
+  .sidebar__label {
+    display: block; font-size: var(--t-xs); font-weight: 700;
+    letter-spacing: .06em; color: var(--text-3); margin-bottom: var(--s2);
   }
-  .railgroup__label { display: block; }
-  .railgroup + .railgroup { margin-top: var(--s-5); }
 
-  /* Stacked in the rail, these stop being horizontal scrollers. */
-  .segmented { grid-auto-flow: row; grid-auto-columns: auto; }
-  .pills { flex-direction: column; align-items: stretch; overflow: visible; }
-  .pill { justify-content: space-between; }
-  .searchrow { flex-direction: column; align-items: stretch; }
-  .filterbtn { justify-content: center; }
+  .main { min-width: 0; padding: var(--s5) var(--s6) var(--s8); }
+  .topbar { position: static; background: none; backdrop-filter: none; border: 0;
+            padding: 0; }
+  /* In a 280px sidebar the mark and the info button were squeezing the hall
+     name down to "So…". They take their own row and the selector gets the
+     width, which is what it is there to show. */
+  .topbar__row { flex-wrap: wrap; padding: 0 0 var(--s3); row-gap: var(--s3); }
+  .topbar__row .brandmark { order: 1; }
+  .topbar__row .iconbtn { order: 2; margin-left: auto; }
+  .topbar__row .hallbtn { order: 3; flex: 1 0 100%; }
 
-  .work { min-width: 0; padding: var(--s-5) 0 var(--s-7); }
-  .work .wrap { max-width: 1240px; margin-left: 0; padding: 0 var(--s-6); }
-  .weekbar { padding: 0 0 var(--s-5); }
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-  /* Stations become columns of cards instead of one long queue. */
-  .cards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s-3); }
-
-  /* The rail names the section, so the tab bar joins it rather than floating
-     across the bottom of a desktop window. */
-  .tabbar {
-    position: fixed; left: 0; bottom: 0; width: 300px; right: auto;
-    background: var(--surface); backdrop-filter: none;
-  }
-  .tabbar__inner { max-width: none; padding: var(--s-2) var(--s-4) var(--s-3); }
+  /* The sidebar names the section, so the bar joins it instead of spanning the
+     window. */
+  .tabbar { width: 280px; right: auto; left: max(0px, calc(50vw - var(--maxw) / 2)); }
+  .tabbar__inner { max-width: none; }
   body { padding-bottom: 0; }
+
+  .station__head { top: 0; }
 }
 
-/* Past this width the work area stops tracking the window: card widths and line
-   lengths stay chosen rather than stretched. */
-@media (min-width: 1560px) {
-  .work .wrap { padding-left: var(--s-7); }
+/* Between 1200 and the max width the grid is already centred by .shell. */
+@media (min-width: 1280px) {
+  .shell { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 }
 
-/* On a phone the rail and the work area are not separate places, so they stop
-   being boxes and their children flow as one column. That restores the reading
-   order the page had before the split: who and when, then where and what. */
-@media (max-width: 999px) {
-  .shell { display: flex; flex-direction: column; }
-  .rail, .work { display: contents; }
-  .rail__top { order: 1; }
-  .weekbar   { order: 2; }
-  .toolbar   { order: 3; }
-  .hero      { order: 4; }
-  #content, #buildView, #plateView { order: 5; }
-
-  /* Flex children default to min-width:auto, so a card refused to shrink below
-     its content and pushed itself off the side of the screen. */
-  .shell > *, .rail__top, .weekbar, .toolbar, .hero,
-  #content, #buildView, #plateView { min-width: 0; max-width: 100%; }
+/* ---- 200% text zoom ----
+   At 200% a 375px phone behaves like a ~187px viewport. Anything laid out as a
+   fixed row has to be allowed to stack, or the page scrolls sideways -- which
+   WCAG 1.4.10 does not permit for content that can reflow. */
+@media (max-width: 340px) {
+  .segmented { grid-auto-flow: row; grid-auto-columns: auto; }
+  .searchrow { flex-direction: column; }
+  .filterbtn { justify-content: center; }
+  .topbar__row { flex-wrap: wrap; row-gap: var(--s2); }
+  .topbar__row .hallbtn { flex: 1 0 100%; order: 3; }
+  .item { grid-template-columns: minmax(0, 1fr); }
+  .addbtn { justify-self: end; }
+  .daymacros, .fgrid { grid-template-columns: 1fr; }
 }
 
-/* ---------- hall picker ---------- */
+@media (max-width: 340px) {
+  .item { grid-template-columns: minmax(0, 1fr) auto; }
+  .item__cal b { font-size: 26px; }
+  .targets .target { flex-basis: 100%; }
+  .fgrid { grid-template-columns: 1fr; }
+}
 
-/* A real <select> under a styled face. The OS picker is faster one-handed than
-   anything custom, and it costs one line instead of a row of pills that
-   scrolled sideways and hid half the halls. */
-.hallpick { position: relative; display: block; }
-.hallpick select {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  opacity: 0; border: 0; background: none; cursor: pointer;
-  font-size: 16px;            /* iOS zooms the page for anything smaller */
+/* Applied filters, shown where the results are rather than buried in the sheet
+   that set them: you can see what is narrowing the list and drop one from here. */
+.chiprow--active { margin-bottom: var(--s4); align-items: center; }
+.chip--remove {
+  background: var(--card); border-color: var(--border);
+  color: var(--text); font-weight: 600;
 }
-.hallpick__face {
-  display: flex; align-items: center; gap: var(--s-2);
-  min-height: var(--tap, 44px); padding: 0 var(--s-3);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface);
+.chip--remove:hover { border-color: var(--border-control); }
+.chip--remove .gi { width: 13px; height: 13px; color: var(--text-3); }
+.chip--remove:hover .gi { color: var(--text); }
+
+/* Expanding a station eases its cards in.
+
+   The obvious trick -- animating grid-template-rows 0fr to 1fr -- needs exactly
+   one wrapped child, and this grid has one child per card, so it would collapse
+   every row into a single track. Collapsing still uses [hidden], which is what
+   actually takes the cards out of the accessibility tree; the motion is on the
+   way back in, where it can be done without lying about what is on the page. */
+.station__head[aria-expanded="true"] + .cards > li {
+  animation: card-in var(--dur) var(--ease) backwards;
 }
-.hallpick__name {
-  flex: 1; min-width: 0; font-size: var(--t-md); font-weight: 640;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.hallpick__count {
-  flex: none; min-width: 26px; padding: 2px 7px; border-radius: 999px;
-  background: var(--tile); color: var(--muted);
+@keyframes card-in { from { opacity: 0; transform: translateY(-4px); } }
+
+/* ---- pieces the build and plate views need ---- */
+
+.btn--sm { min-height: 36px; padding: var(--s2) var(--s3); font-size: var(--t-sm); }
+.panel__meta { font-size: var(--t-sm); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bars { margin-top: var(--s4); }
+.meal__count {
+  flex: none; min-width: 22px; padding: 2px var(--s2); border-radius: var(--r-pill);
+  background: var(--card-2); color: var(--text-2);
   font-size: var(--t-xs); font-weight: 700; text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-.hallpick__face .gi { flex: none; width: 15px; height: 15px; color: var(--faint); }
-.hallpick select:focus-visible + .hallpick__face {
-  outline: 2px solid var(--brand); outline-offset: 2px;
+/* Remove-from-plate, inside a row. */
+.remove {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: var(--r-ctl); color: var(--text-3);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
+.remove:hover { color: var(--danger); background: var(--danger-wash); }
+.remove .gi { width: 15px; height: 15px; }
+/* A row that is only a row, not a button. */
+li.row { cursor: default; }
+li.row:hover { background: var(--card-2); }
+.sheet__h3 {
+  margin: var(--s5) 0 var(--s3); font-size: var(--t-xs); font-weight: 700;
+  letter-spacing: .06em; color: var(--text-3);
+}
+.sheet__content > .sheet__h3:first-child { margin-top: 0; }
+.ingredients { font-size: var(--t-sm); color: var(--text-2); line-height: 1.6; }
+.served { display: grid; gap: var(--s2); font-size: var(--t-sm); color: var(--text-2); }
+.served b { color: var(--text); font-weight: 620; }
