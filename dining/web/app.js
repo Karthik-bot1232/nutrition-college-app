@@ -1742,6 +1742,10 @@ function resetFilters() {
 }
 
 async function init() {
+  // An earlier build had a light/dark toggle that remembered its setting. The
+  // app is dark only now, so drop anything a browser kept from that.
+  document.documentElement.dataset.theme = 'dark';
+  try { localStorage.removeItem('dining.theme'); } catch {}
   // The first load is the one that had no loading state at all: everything on
   // this page is drawn from /api/meta, so until it lands there was nothing to
   // look at but an empty shell and a search box. Put the skeleton up before
