@@ -40,6 +40,14 @@
   --shadow-md: 0 2px 8px rgba(11,13,18,.07);
   --shadow-lg: 0 18px 48px rgba(11,13,18,.22);
 
+  /* Two faces, with a job each. Body text stays on the system stack because it
+     is the most readable thing on any device and nobody thanks you for a
+     webfont in a paragraph. Headings and figures get Space Grotesk, which has
+     an actual voice -- and since this app is mostly numbers, the numerals doing
+     something other than Helvetica's is most of the character it has. If the
+     font never arrives, everything falls back and nothing breaks. */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 20px;
@@ -113,7 +121,6 @@ body {
   color: var(--text);
   font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  padding-bottom: 116px;
 }
 
 .wrap { max-width: 940px; margin: 0 auto; padding: 0 16px; }
@@ -457,7 +464,7 @@ main { padding-top: 22px; }
   position: relative;
   width: 34px; height: 34px; flex: none; border-radius: 11px; margin-top: 1px;
   border: 0; background: var(--surface-2); color: var(--muted);
-  font-size: 19px; line-height: 1; display: grid; place-items: center; transition: .12s;
+  font-size: 17px; line-height: 1; display: grid; place-items: center; transition: .12s;
   touch-action: manipulation;
 }
 /* The button reads as 36px but takes taps across the full 44px minimum, so it
@@ -470,11 +477,17 @@ main { padding-top: 22px; }
 .empty h2 { margin: 0 0 6px; font-size: 16px; color: var(--text); }
 .empty p { margin: 0 auto; max-width: 46ch; font-size: 13.5px; line-height: 1.5; }
 
+.gi {
+  width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor;
+  stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round;
+}
+
 .notice {
   display: flex; gap: 9px; padding: 11px 13px; margin-bottom: 16px;
   border-radius: var(--r-md); background: var(--warn-bg); color: var(--warn-text);
   border: 1px solid var(--warn-border); font-size: 12.5px; line-height: 1.45;
 }
+.notice > .gi { width: 17px; height: 17px; margin-top: 1px; }
 
 .resulthead {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -499,7 +512,8 @@ main { padding-top: 22px; }
 .sheet__head p { margin: 0; font-size: 12.5px; color: var(--muted); }
 .sheet__close {
   border: 0; background: var(--surface-2); border-radius: var(--r-sm);
-  width: 30px; height: 30px; flex: none; font-size: 17px; color: var(--muted);
+  width: 30px; height: 30px; flex: none; font-size: 15px; color: var(--muted);
+  display: grid; place-items: center;
 }
 
 /* filter sheet */
@@ -577,7 +591,7 @@ main { padding-top: 22px; }
 .plateitem__meta { flex: 1; min-width: 0; }
 .plateitem__meta p { margin: 2px 0 0; font-size: 11.5px; color: var(--faint); }
 .plateitem strong { font-weight: 620; }
-.remove { border: 0; background: none; color: var(--faint); font-size: 18px; padding: 0 4px; }
+.remove { border: 0; background: none; color: var(--faint); font-size: 15px; padding: 0 6px; }
 .remove:hover { color: var(--protein); }
 
 /* ---------- narrow ---------- */
@@ -778,3 +792,86 @@ body { padding-bottom: 82px; }
 .meal__body .plateitems { margin-top: 12px; }
 .meal__body .plan__bars { margin-top: 13px; }
 .meal__clear { width: 100%; margin-top: 12px; }
+
+/* ---------- loading ---------- */
+
+/* Skeletons match the real card's box exactly, so the swap does not shift the
+   page under a thumb that is already reaching for something. */
+.sk {
+  padding: 14px 14px 13px; border-radius: var(--r-xl);
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.sk__line, .sk__tiles {
+  display: block; border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--track) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: sk 1.25s ease-in-out infinite;
+}
+.sk__line--head { width: 120px; height: 11px; }
+.sk__line--name { width: 62%; height: 14px; }
+.sk__line--sub { width: 34%; height: 10px; margin-top: 8px; }
+.sk__tiles { height: 58px; margin-top: 12px; border-radius: var(--r-md); }
+
+@keyframes sk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* A shimmer is decoration; someone who has asked for less motion still needs
+   to know something is happening, so it holds a flat tone instead. */
+@media (prefers-reduced-motion: reduce) {
+  .sk__line, .sk__tiles { animation: none; background: var(--surface-2); }
+}
+
+
+/* ---------- display face ---------- */
+
+.brand h1,
+.weeknav__label b,
+.day strong,
+.station__head,
+.hall__head h2,
+.stat b,
+.platehead__row h2,
+.daymacro b,
+.plan__head h3,
+.planitem__cal,
+.buildhead__row h2,
+.target b,
+.meal__name,
+.bignum b,
+.gbar__top b,
+.sheet__head h2,
+.empty h2 {
+  font-family: var(--font-display);
+  font-feature-settings: "tnum" 1;   /* figures keep their column when they change */
+}
+
+/* Space Grotesk runs a little wide and heavy at the same nominal weight, so the
+   places that were tuned against the system face get their tracking back. */
+.brand h1 { letter-spacing: -.03em; }
+.platehead__row h2 { letter-spacing: -.035em; }
+.stat b { letter-spacing: -.025em; }
+
+/* The target notch: a hairline standing at the goal on every bar.
+
+   Hand-placed rather than inherited from anything -- the fill can only report
+   "full", so once you are over a ceiling the bar alone cannot tell you whether
+   you went over by two grams or by forty. The notch stays at the target while
+   the fill runs past it. */
+.gbar__track { position: relative; }
+.gbar__notch {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  translate: -1px 0; border-radius: 2px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 38%, transparent);
+}
+.gbar[data-state="over"] .gbar__notch {
+  background: var(--warn-text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warn-text) 45%, transparent);
+}
+
+/* While the first request is in flight the controls have nothing to show yet.
+   Holding their height stops the page shuffling downward the moment it does. */
+body[data-booting="1"] .weekbar,
+body[data-booting="1"] .toolbar { opacity: .45; }
+body[data-booting="1"] .weekdays { min-height: 46px; }
+body[data-booting="1"] .segmented { min-height: 40px; }
+body[data-booting="1"] .pills { min-height: 32px; }
