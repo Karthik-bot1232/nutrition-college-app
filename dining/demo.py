@@ -43,7 +43,7 @@ NUTRIENTS = ("total_fat_g", "saturated_fat_g", "trans_fat_g", "cholesterol_mg",
              "insoluble_fiber_g", "total_sugars_g", "added_sugars_g", "protein_g",
              "calcium_mg", "iron_mg", "potassium_mg", "vitamin_a_mcg", "vitamin_c_mg")
 CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css",
-                 ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json",
+                 ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json",
                  ".json": "application/json"}
 
 

@@ -31,6 +31,7 @@ CONTENT_TYPES = {
     ".js": "text/javascript",
     ".css": "text/css",
     ".svg": "image/svg+xml",
+    ".png": "image/png",
     # Browsers ignore a manifest served as anything else, so the app
     # silently stays un-installable.
     ".webmanifest": "application/manifest+json",
@@ -394,17 +395,28 @@ def main():
     parser.add_argument("--open", action="store_true", help="open a browser window")
     args = parser.parse_args()
 
+    handler = partial(Handler, college=args.college)
+    # Bind before opening the pool: a port already taken (usually an earlier
+    # `serve` still running) should say so, not leave pool threads to crash
+    # the interpreter on the way out.
+    try:
+        httpd = ThreadingHTTPServer((args.host, args.port), handler)
+    except OSError as exc:
+        raise SystemExit(f"Cannot listen on {args.host}:{args.port}: {exc.strerror}. "
+                         f"Is another `dining.serve` already running? "
+                         f"Try --port {args.port + 1}.") from None
+
     connections = db.pool(args.dsn)
     with connections.connection() as raw:
         days = db.Database(raw).execute(
             "SELECT COUNT(DISTINCT service_date) AS n FROM menu_entries WHERE college = ?",
             (args.college,)).fetchone()["n"]
     if not days:
+        connections.close()
+        httpd.server_close()
         raise SystemExit(f"No menus stored for {args.college!r}. "
                          f"Run: python3 -m dining.refresh --college {args.college}")
 
-    handler = partial(Handler, college=args.college)
-    httpd = ThreadingHTTPServer((args.host, args.port), handler)
     httpd.pool = connections
     url = f"http://{args.host}:{args.port}"
     print(f"{get_adapter(args.college).name} — {days} days of menus\n"
