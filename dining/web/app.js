@@ -309,88 +309,68 @@ const STATS = [
   ['fat', 'ic-fat', 'Fat', 'total_fat_g'],
 ];
 
-/* Calories lead; the macros follow, quietly.
+/* One item.
 
-   Four tiles of identical size and weight is four things shouting the same
-   volume, which is no hierarchy at all -- the eye has nowhere to land and every
-   card looks like every other card. Calories are the number nearly everyone is
-   actually scanning for, so they get the size, and the three macros drop to a
-   supporting row. Same information, an order of importance added. */
-function statTiles(item) {
-  const [cal, ...macros] = STATS;
-  const calVal = item.calories;
+   Name and serving on the left, calories on the right as the hero number, a
+   macro row under them, tags last. Each macro is a coloured dot next to its own
+   value and word, so the hue is reinforcement and never the only thing saying
+   which macro it is. */
+const MACROS = [
+  ['carbs',   'Carbs',   'total_carbs_g'],
+  ['protein', 'Protein', 'protein_g'],
+  ['fat',     'Fat',     'total_fat_g'],
+];
 
-  const lead = `<div class="lead">
-    <svg class="lead__ic" aria-hidden="true"><use href="#${cal[1]}"/></svg>
-    <b aria-hidden="true">${calVal == null ? '–' : Math.round(calVal)}</b>
-    <span aria-hidden="true">Calories</span>
-    <span class="sr">${calVal == null ? 'Calories not published'
-      : `${Math.round(calVal)} calories`}</span>
-  </div>`;
-
-  const rest = macros.map(([cls, icon, label, key]) => {
-    const raw = item.nutrients[key];
-    const shown = raw == null ? '–' : Math.round(raw) + 'g';
-    // No icon down here. At 13px it was a smudge, and it cost the width that
-    // was truncating "Protein" to "Prot…" -- the word is the label, so the
-    // colour moves onto the figure and the glyph goes.
-    return `<div class="stat stat--${cls}">
-      <b aria-hidden="true">${shown}</b>
-      <span aria-hidden="true">${label}</span>
-      <span class="sr">${raw == null ? `${label} not published`
-        : `${label} ${Math.round(raw)} grams`}</span>
-    </div>`;
-  }).join('');
-
-  return `${lead}<div class="stats">${rest}</div>`;
+function macroRow(item) {
+  return `<div class="macros">${MACROS.map(([cls, label, key]) => {
+    const g = item.nutrients[key];
+    return `<span class="macro macro--${cls}">
+      <span class="macro__dot" aria-hidden="true"></span>
+      <span class="macro__val">${g == null ? '–' : Math.round(g) + 'g'}</span>
+      <span class="macro__label">${label}</span>
+    </span>`;
+  }).join('')}</div>`;
 }
 
-// Two allergens then a count, not three: the chip sits beside the diet badges
-// and the third name is what pushes the row onto a second line on a phone,
-// which costs a line on every card in a list that runs to 300 of them.
-function tags(item, max = 2) {
+function tagRow(item) {
   const out = [];
   if (item.label_implausible)
-    out.push(`<span class="badge badge--warn" title="This label fails a plausibility check — it reads as a batch rather than one serving. Verify against the posted card.">check label</span>`);
+    out.push(`<span class="pill pill--warn">Check label</span>`);
   else if (item.nutrition_suspect)
-    out.push(`<span class="badge badge--warn" title="The macros on this label do not add up to its calorie count.">macros off</span>`);
-  item.diets.forEach(d => out.push(`<span class="badge badge--diet">${esc(titleCase(d))}</span>`));
-
-  // Allergens stay quieter than the diet badges -- on a menu where most items
-  // contain something, loud pills drown out the food -- but they are a chip like
-  // everything else on this row now. As italic text wedged between badges they
-  // read as a stray caption rather than a property of the item, which is most of
-  // why the row looked unsorted. "Contains" is what separates them from a diet
-  // badge at a glance: "Dairy" beside "Vegan" is otherwise ambiguous.
-  let note = '';
+    out.push(`<span class="pill pill--warn">Macros off</span>`);
+  item.diets.forEach(d => out.push(`<span class="pill pill--diet">${esc(titleCase(d))}</span>`));
   if (!item.allergen_data_published) {
-    note = `<span class="badge badge--unknown" title="Nothing was published. This is not a claim that the item is free of anything.">No allergen data</span>`;
+    out.push(`<span class="pill pill--unknown">No allergen data</span>`);
   } else if (item.allergens.length) {
-    const shown = item.allergens.slice(0, max).map(titleCase).join(', ');
-    const more = item.allergens.length > max ? ` +${item.allergens.length - max}` : '';
-    note = `<span class="badge badge--allergen" title="Contains ${esc(item.allergens.map(titleCase).join(', '))}">Contains ${esc(shown)}${more}</span>`;
+    const shown = item.allergens.slice(0, 2).map(titleCase).join(', ');
+    const more = item.allergens.length > 2 ? ` +${item.allergens.length - 2}` : '';
+    out.push(`<span class="pill pill--allergen">Contains ${esc(shown)}${more}</span>`);
   }
-  if (!out.length && !note) return '';
-  return `<div class="card__meta">${out.join('')}${note}</div>`;
+  return out.length ? `<div class="item__tags">${out.join('')}</div>` : '';
 }
 
 function card(item, sub) {
   state.items.set(item.recipe_id, item);
-  const inPlate = plateFor().some(p => p.recipe_id === item.recipe_id) ? '1' : '0';
-  return `<article class="card" tabindex="0" role="button" data-id="${esc(item.recipe_id)}"
-      aria-label="${esc(item.name)}, details">
-    <div class="card__top">
-      <div class="card__id">
-        <h3 class="card__name">${esc(item.name)}</h3>
-        <p class="card__sub">${esc(sub || item.serving_size || '')}</p>
-      </div>
-      <button class="add" data-add="${esc(item.recipe_id)}" data-in="${inPlate}"
-              aria-label="${inPlate === '1' ? 'Remove from' : 'Add to'} plate"
-              >${inPlate === '1' ? `<svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>` : `<svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg>`}</button>
-    </div>
-    ${statTiles(item)}
-    ${tags(item)}
-  </article>`;
+  const on = plateFor().some(p => p.recipe_id === item.recipe_id);
+  const cal = item.calories == null ? '–' : Math.round(item.calories);
+  return `<li><article class="card item">
+    <button class="item__main" data-id="${esc(item.recipe_id)}"
+            aria-label="${esc(item.name)}, ${cal} calories. Full label">
+      <span class="item__row">
+        <span>
+          <span class="item__name">${esc(item.name)}</span>
+          <span class="item__serving">${esc(sub || item.serving_size || '')}</span>
+        </span>
+        <span class="item__cal"><b>${cal}</b><span>cal</span></span>
+      </span>
+      ${macroRow(item)}
+      ${tagRow(item)}
+    </button>
+    <button class="addbtn" data-add="${esc(item.recipe_id)}" aria-pressed="${on}"
+            aria-label="${on ? 'Remove' : 'Add'} ${esc(item.name)} ${on ? 'from' : 'to'} plate">
+      <svg class="gi" aria-hidden="true"><use href="#ic-${on ? 'check' : 'plus'}"/></svg>
+    </button>
+  </article></li>`;
 }
 
 /* ------------------------------------------------------------------ chrome */
@@ -407,7 +387,6 @@ function renderDates() {
   const sameMonth = first.getMonth() === last.getMonth();
   const fmt = (d, withMonth) => d.toLocaleDateString(undefined,
     withMonth ? { month: 'short', day: 'numeric' } : { day: 'numeric' });
-  const span = `${fmt(first, true)} – ${fmt(last, !sameMonth)}`;
   const rel = state.weekStart === thisWeek ? 'This week'
     : state.weekStart === addDays(thisWeek, 7) ? 'Next week'
     : state.weekStart === addDays(thisWeek, -7) ? 'Last week'
@@ -416,40 +395,53 @@ function renderDates() {
   $('#weekNav').innerHTML = `
     <button class="weeknav__arrow" data-week="-1" ${at <= 0 ? 'disabled' : ''}
             aria-label="Previous week">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <div class="weeknav__label"><b>${esc(span)}</b><span>${rel}</span></div>
+      <svg class="gi" aria-hidden="true"><use href="#ic-left"/></svg></button>
+    <span class="weeknav__label">
+      <b>${esc(fmt(first, true))} – ${esc(fmt(last, !sameMonth))}</b>
+      <span>${rel}</span></span>
     <button class="weeknav__arrow" data-week="1" ${at >= weeks.length - 1 ? 'disabled' : ''}
             aria-label="Next week">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>`;
+      <svg class="gi" aria-hidden="true"><use href="#ic-right"/></svg></button>`;
 
-  // Always seven columns, Monday first, so a given weekday sits in the same
-  // place every week. A day the college published nothing for is shown and
-  // disabled rather than dropped, because a gap that silently reflows the row
-  // is harder to read than one that stays put.
+  // Seven fixed columns, Monday first, so a weekday keeps its place week to
+  // week. A day the hall never published stays in position and is disabled
+  // rather than dropped, which would reflow the row under a thumb.
   $('#dateStrip').innerHTML = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(state.weekStart, i);
     const dt = parseDay(d);
     const has = dates.includes(d);
-    return `<button class="day" data-date="${d}" data-today="${d === today ? 1 : 0}"
-      aria-selected="${d === state.date}" ${has ? '' : 'disabled title="No menu stored"'}>
-      <span>${dt.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
-      <strong>${dt.getDate()}</strong></button>`;
+    const sel = d === state.date;
+    const full = dt.toLocaleDateString(undefined,
+      { weekday: 'long', month: 'long', day: 'numeric' });
+    return `<button class="day" role="tab" data-date="${d}"
+      aria-selected="${sel}" tabindex="${sel ? 0 : -1}"
+      ${has ? '' : 'disabled'}
+      aria-label="${esc(full)}${has ? '' : ', no menu published'}">
+      <span class="day__dow" aria-hidden="true">${dt.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
+      <span class="day__num" aria-hidden="true">${dt.getDate()}</span>
+      ${d === today ? '<span class="day__today" aria-hidden="true"></span>' : ''}
+    </button>`;
   }).join('');
 
-  const dt = parseDay(state.date);
-  $('#dayLabel').textContent = dt.toLocaleDateString(undefined,
-    { weekday: 'long', month: 'long', day: 'numeric' }) +
-    (state.date === today ? ' · today' : '');
+  // Bring the selected day into view without yanking the page.
+  const sel = $(`.day[data-date="${state.date}"]`);
+  sel?.scrollIntoView({ inline: 'center', block: 'nearest',
+                        behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }
+
+const prefersReducedMotion = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 const count = (meal, loc) => state.meta.counts[`${state.date}|${meal}|${loc}`] || 0;
 
 function renderMeals() {
-  $('#mealTabs').innerHTML = state.meta.meals.map(m => {
-    const served = state.meta.locations.some(l => count(m, l.id) > 0);
-    return `<button role="tab" data-meal="${m}" aria-selected="${m === state.meal}"
-      ${served ? '' : 'disabled title="Nothing served at any hall"'}>${m}</button>`;
-  }).join('');
+  $('#mealTabs').innerHTML = state.meta.meals.map(mm => {
+    const served = state.meta.locations.some(l => count(mm, l.id) > 0);
+    const sel = mm === state.meal;
+    return `<button role="tab" data-meal="${esc(mm)}" aria-selected="${sel}"
+      tabindex="${sel ? 0 : -1}"
+      ${served ? '' : 'disabled aria-describedby="mealNone"'}>${esc(mm)}</button>`;
+  }).join('') + '<span class="sr" id="mealNone">Nothing served at any hall</span>';
 }
 
 /* One picker, not a row of pills you have to scroll sideways through.
@@ -457,29 +449,28 @@ function renderMeals() {
    Four halls in a horizontal scroller cost a full row of the screen and hid
    whichever ones did not fit. The native control is one tap, shows every option
    at once, and is the thing a phone is already good at. */
+/** The hall lives in the top bar as a compact button and opens a sheet.
+
+    Four halls as pills cost a whole row on a phone and hid whichever did not
+    fit; a sheet shows every option at once with its count, at full tap size. */
 function renderHalls() {
   const total = state.meta.locations.reduce((n, l) => n + count(state.meal, l.id), 0);
-  const options = state.meta.locations.map(l => {
-    const n = count(state.meal, l.id);
-    return `<option value="${esc(l.id)}" ${l.id === state.location ? 'selected' : ''}
-      >${esc(l.name)} — ${n} item${n === 1 ? '' : 's'}</option>`;
-  });
-  options.push(`<option value="all" ${state.location === 'all' ? 'selected' : ''}
-    >All halls — ${total} items</option>`);
-
-  const current = state.location === 'all' ? 'All halls' : hallName(state.location);
   const shown = state.location === 'all' ? total : count(state.meal, state.location);
+  $('#hallName').textContent = state.location === 'all' ? 'All halls' : hallName(state.location);
+  $('#hallCount').textContent = shown;
+  $('#hallBtn').setAttribute('aria-label',
+    `Dining hall: ${state.location === 'all' ? 'All halls' : hallName(state.location)}, ` +
+    `${shown} item${shown === 1 ? '' : 's'}. Change`);
 
-  $('#hallPills').innerHTML = `
-    <label class="hallpick">
-      <span class="sr">Dining hall</span>
-      <select id="hallSelect">${options.join('')}</select>
-      <span class="hallpick__face" aria-hidden="true">
-        <span class="hallpick__name">${esc(current)}</span>
-        <span class="hallpick__count">${shown}</span>
-        <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
-      </span>
-    </label>`;
+  const opt = (id, label, n) => `<button class="row" data-loc="${esc(id)}"
+      aria-pressed="${id === state.location}">
+      <span class="row__id"><b>${esc(label)}</b><span>${n} item${n === 1 ? '' : 's'}</span></span>
+      ${id === state.location
+        ? '<svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>' : ''}
+    </button>`;
+  $('#hallOptions').innerHTML =
+    state.meta.locations.map(l => opt(l.id, l.name, count(state.meal, l.id))).join('') +
+    opt('all', 'All halls', total);
 }
 
 function renderActiveFilters() {
@@ -493,15 +484,23 @@ function renderActiveFilters() {
 
   bar.hidden = !list.length;
   bar.innerHTML = list.map((f, i) =>
-    `<button class="afchip" data-af="${i}">${esc(f.label)}</button>`).join('') +
-    (list.length > 1 ? `<button class="afclear" data-afclear>Clear all</button>` : '');
+    `<button class="chip chip--remove" data-af="${i}"
+       aria-label="Remove filter: ${esc(f.label)}">${esc(f.label)}
+       <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>`).join('') +
+    (list.length > 1
+      ? `<button class="linkbtn" data-afclear>Clear all</button>` : '');
   bar._filters = list;
 }
 
 /* ------------------------------------------------------------------- views */
 
-const emptyState = (title, body) =>
-  `<div class="empty"><h2>${esc(title)}</h2><p>${body}</p></div>`;
+const emptyState = (title, body, action = '') => `
+  <div class="empty">
+    <span class="empty__icon"><svg class="gi" aria-hidden="true"><use href="#ic-search"/></svg></span>
+    <h2>${esc(title)}</h2>
+    <p>${body}</p>
+    ${action}
+  </div>`;
 
 const cssId = key => key.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 
@@ -509,13 +508,18 @@ function stationSection(st, key) {
   const shown = state.hideImplausible ? st.items.filter(i => !i.label_implausible) : st.items;
   if (!shown.length) return '';
   const open = !state.collapsed.has(key);
-  return `<section class="station" id="st-${cssId(key)}">
-    <button class="station__head" data-collapse="${esc(key)}" aria-expanded="${open}">
-      <h2>${esc(st.station)}</h2>
-      <span>${shown.length}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>
-    </button>
-    <div class="cards" ${open ? '' : 'hidden'}
-      >${shown.map(i => card(i, i.portion || i.serving_size)).join('')}</div>
+  const id = `st-${cssId(key)}`;
+  return `<section class="station">
+    <h2>
+      <button class="station__head" data-collapse="${esc(key)}"
+              aria-expanded="${open}" aria-controls="${id}-list">
+        <span class="station__name">${esc(st.station)}</span>
+        <span class="station__count">${shown.length}</span>
+        <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
+      </button>
+    </h2>
+    <ul class="cards" id="${id}-list" ${open ? '' : 'hidden'}
+      >${shown.map(i => card(i, i.portion || i.serving_size)).join('')}</ul>
   </section>`;
 }
 
@@ -523,45 +527,32 @@ function stationKeys(data) {
   return data.locations.flatMap(h => h.stations.map(st => `${h.location_id}|${st.station}`));
 }
 
-/* One quiet line, not a third horizontal scroller.
-
-   This used to be a row of station chips you swiped through, stacked under a
-   week strip and a meal row and a hall row -- four scrollers deep before any
-   food. The stations are collapsible headings a thumb-flick away, so the bar is
-   now just the count and the one control that saves real time on a 23-station
-   lunch. */
+/** Count on the left, the one control that saves time on the right. */
 function jumpbar(data) {
-  const halls = data.locations;
   const keys = stationKeys(data);
   const allCollapsed = keys.every(k => state.collapsed.has(k));
-  const sections = halls.length > 1
+  const halls = data.locations;
+  const label = halls.length > 1
     ? `${halls.length} halls`
     : `${halls[0].stations.length} station${halls[0].stations.length === 1 ? '' : 's'}`;
-
-  return `<div class="jumpbar">
-    <span class="jumpbar__label">${sections}</span>
-    <button class="jump jump--toggle" data-collapseall="${allCollapsed ? 'open' : 'close'}"
+  return `<p class="resultline">
+    <span>${label}</span>
+    <button class="linkbtn" data-collapseall="${allCollapsed ? 'open' : 'close'}"
       >${allCollapsed ? 'Expand all' : 'Collapse all'}</button>
-  </div>`;
+  </p>`;
 }
 
-/* Cards with the text taken out, shown while a menu is in flight.
-
-   Switching hall or meal used to leave the previous hall's food on screen
-   until the new data landed -- so the app looked like it had ignored you, and
-   then answered a question you had stopped asking. Skeletons reserve the same
-   space the real cards take, so nothing jumps when they are replaced. */
+/* Card-shaped placeholders in the same boxes the real cards occupy, so the
+   swap does not shift the page under a thumb already reaching for something. */
 function skeleton(rows = 6) {
-  // Same elements the real list uses -- a <ul> here would inherit bullets that
-  // the real .cards container never has to reset.
-  const card = `<div class="sk">
+  const card = `<li class="sk">
     <span class="sk__line sk__line--name"></span>
     <span class="sk__line sk__line--sub"></span>
-    <span class="sk__tiles"></span>
-  </div>`;
+    <span class="sk__block"></span>
+  </li>`;
   return `<section class="station">
-    <h2 class="station__head"><span class="sk__line sk__line--head"></span></h2>
-    <div class="cards">${card.repeat(rows)}</div>
+    <p class="resultline"><span class="sk__line sk__line--head"></span></p>
+    <ul class="cards">${card.repeat(rows)}</ul>
   </section>`;
 }
 
@@ -684,25 +675,23 @@ const TABS = ['browse', 'build', 'plate'];
 function setTab(tab, fromHash = false) {
   if (!TABS.includes(tab)) tab = 'browse';
   state.tab = tab;
-  // The tab lives in the URL so a view can be linked, reloaded and navigated
-  // back to. Without it, browser Back leaves the app and reload always lands
-  // on Browse.
   if (!fromHash) {
-    const want = tab === 'browse' ? ' ' : `#${tab}`;
-    if (location.hash !== want.trim()) history.pushState({ tab }, '', tab === 'browse' ? location.pathname : `#${tab}`);
+    history.pushState({ tab }, '', tab === 'browse' ? location.pathname : `#${tab}`);
   }
-  $$('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  $$('.tab').forEach(b => {
+    const on = b.dataset.tab === tab;
+    on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
+  });
   $('#content').hidden = tab !== 'browse';
   $('#buildView').hidden = tab !== 'build';
   $('#plateView').hidden = tab !== 'plate';
-  // The search box and filter chips act on the browse list; on the other tabs
-  // they would look live and do nothing.
-  $('.toolbar').hidden = tab !== 'browse';
+  // Search and filters act on the browse list; on the other tabs they would
+  // look live and do nothing.
+  $('.controls').hidden = tab !== 'browse';
+  $('#dateNav').hidden = false;
   $('#hero').hidden = tab !== 'browse';
   if (tab === 'build') {
     renderBuild();
-    // Opening Build is the request. Making you tap a second button to get what
-    // the tab is named after is a step that exists only because it was easy.
     if (!state.plans && !state.planning) runBuild();
   }
   if (tab === 'plate') renderPlateView();
@@ -736,27 +725,27 @@ function goalBar(label, value, target, unit, cls, ceiling = false) {
 function planCard(plan, index, goal) {
   const t = plan.totals;
   const rows = plan.items.map(i => `
-    <li class="planitem" data-id="${esc(i.recipe_id)}">
-      <div class="planitem__id">
+    <li class="row" data-id="${esc(i.recipe_id)}">
+      <div class="row__id">
         <b>${esc(i.name)}</b>
         <span>${esc(i.serving_size || i.portion || '')} · ${esc(i._station)}</span>
       </div>
-      <span class="planitem__cal">${Math.round(i.calories)}</span>
+      <span class="row__cal">${Math.round(i.calories)}</span>
     </li>`).join('');
 
-  return `<article class="plan">
-    <div class="plan__head">
+  return `<article class="panel">
+    <div class="panel__row">
       <h3>Option ${index + 1}</h3>
-      <span class="plan__cal">${Math.round(t.cal)} cal · ${Math.round(t.p)}g protein</span>
+      <span class="panel__meta">${Math.round(t.cal)} cal · ${Math.round(t.p)}g protein</span>
     </div>
-    <ul class="plan__items">${rows}</ul>
-    <div class="plan__bars">
+    <ul class="rows">${rows}</ul>
+    <div class="bars">
       ${goalBar('Calories', t.cal, goal.calories, '', 'cal')}
       ${goalBar('Protein', t.p, goal.protein, 'g', 'protein')}
       ${goal.maxCarbs ? goalBar('Carbs', t.c, goal.maxCarbs, 'g', 'carb', true) : ''}
       ${goal.maxFat ? goalBar('Fat', t.f, goal.maxFat, 'g', 'fat', true) : ''}
     </div>
-    <button class="primarybtn plan__use" data-useplan="${index}">Put this on my plate</button>
+    <button class="btn btn--primary btn--block" data-useplan="${index}">Put this on my plate</button>
   </article>`;
 }
 
@@ -769,16 +758,16 @@ function renderBuild() {
   ];
 
   const head = `
-    <div class="buildhead">
-      <div class="buildhead__row">
+    <div class="panel">
+      <div class="panel__row">
         <div>
           <h2>Build a meal</h2>
           <p>${esc(state.meal)} at ${esc(where)} · ${esc(
             new Date(state.date + 'T12:00:00').toLocaleDateString(undefined,
               { weekday: 'long', month: 'short', day: 'numeric' }))}</p>
         </div>
-        <button class="goalbtn" id="editGoals">
-          <svg aria-hidden="true"><use href="#ic-target"/></svg>
+        <button class="btn btn--ghost btn--sm" id="editGoals">
+          <svg class="gi" aria-hidden="true"><use href="#ic-target"/></svg>
           <span>${goal.isDefault ? 'Set targets' : 'Targets'}</span></button>
       </div>
       <div class="targets">
@@ -788,10 +777,10 @@ function renderBuild() {
         ${goal.maxFat ? `<div class="target"><b>${goal.maxFat}g</b><span>fat max</span></div>` : ''}
       </div>
       ${constraints.length
-        ? `<p class="buildhead__con">Only using: ${esc(constraints.join(' · '))}</p>` : ''}
+        ? `<p class="hint">Only using: ${esc(constraints.join(' · '))}</p>` : ''}
       ${goal.isDefault
         ? `<p class="hint">Using a default 700 cal / 35g protein. Tap <b>Targets</b> to change it.</p>` : ''}
-      <button class="primarybtn buildhead__go" id="runBuild">
+      <button class="btn btn--primary btn--block" id="runBuild">
         ${state.plans ? 'Build again' : 'Build my meal'}</button>
     </div>`;
 
@@ -853,19 +842,19 @@ function mealSection(meal) {
       <span class="meal__name">${esc(meal)}</span>
       <span class="meal__sum">${summary}</span>
       ${rows.length ? `<span class="meal__count">${rows.length}</span>
-        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>` : ''}
+        <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>` : ''}
     </button>
 
     ${open && rows.length ? `<div class="meal__body">
-      <ul class="plateitems">${rows.map(i => `
-        <li class="planitem">
-          <div class="planitem__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}</span></div>
-          <span class="planitem__cal">${Math.round(i.calories)}</span>
+      <ul class="rows">${rows.map(i => `
+        <li class="row">
+          <div class="row__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}</span></div>
+          <span class="row__cal">${Math.round(i.calories)}</span>
           <button class="remove" data-remove="${esc(i.recipe_id)}" data-from="${esc(meal)}"
                   aria-label="Remove ${esc(i.name)}"><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
         </li>`).join('')}</ul>
 
-      <div class="plan__bars">
+      <div class="bars">
         ${goalBar('Calories', t.cal, goal.calories, '', 'cal')}
         ${goalBar('Protein', t.p, goal.protein, 'g', 'protein')}
         ${goal.maxCarbs ? goalBar('Carbs', t.c, goal.maxCarbs, 'g', 'carb', true) : ''}
@@ -876,7 +865,7 @@ function mealSection(meal) {
         flagged === 1 ? ' has a label that fails' : 's have labels that fail'} the plausibility
         check, so this meal's total is probably too high.</span></div>` : ''}
 
-      <button class="ghostbtn meal__clear" data-clear-meal="${esc(meal)}">Clear ${esc(meal.toLowerCase())}</button>
+      <button class="btn btn--ghost btn--block" data-clear-meal="${esc(meal)}">Clear ${esc(meal.toLowerCase())}</button>
     </div>` : ''}
   </section>`;
 }
@@ -889,11 +878,11 @@ function renderPlateView() {
 
   if (!n) {
     $('#plateView').innerHTML = `
-      <div class="platehead">
-        <div class="platehead__row">
+      <div class="panel">
+        <div class="panel__row">
           <div><h2>Nothing logged</h2><p>${esc(dayLabel)}</p></div>
-          <button class="goalbtn" id="editGoals2">
-            <svg aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
+          <button class="btn btn--ghost btn--sm" id="editGoals2">
+            <svg class="gi" aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
         </div>
       </div>
       ${emptyState('Your day is empty',
@@ -906,12 +895,12 @@ function renderPlateView() {
   // The day is the sum of its meals, so it is reported as a number rather than
   // as a bar: the targets are per meal, and three of them is not a day's goal.
   $('#plateView').innerHTML = `
-    <div class="platehead">
-      <div class="platehead__row">
+    <div class="panel">
+      <div class="panel__row">
         <div><h2>${Math.round(day.cal).toLocaleString()} cal</h2>
           <p>${n} item${n === 1 ? '' : 's'} across the day · ${esc(dayLabel)}</p></div>
-        <button class="goalbtn" id="editGoals2">
-          <svg aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
+        <button class="btn btn--ghost btn--sm" id="editGoals2">
+          <svg class="gi" aria-hidden="true"><use href="#ic-target"/></svg><span>Targets</span></button>
       </div>
       <div class="daymacros">
         <div class="daymacro daymacro--p"><b>${Math.round(day.p)}g</b><span>Protein</span></div>
@@ -937,30 +926,79 @@ function syncGoalInputs() {
   $('#gFat').value = state.goals.maxFat;
 }
 
+/* --------------------------------------------------------- selection */
+
+function selectDate(date) {
+  if (date === state.date) return;
+  state.date = date;
+  state.collapsed.clear();
+  renderDates(); renderMeals(); renderHalls(); loadPlate(); render();
+}
+
+function selectMeal(meal) {
+  if (meal === state.meal) return;
+  state.meal = meal;
+  state.collapsed.clear();
+  renderMeals(); renderHalls(); render();
+}
+
+/* ------------------------------------------------------------- sheets */
+
+let sheetOpener = null;
+
+/** <dialog> already gives modality, the top layer, Escape and a focus trap.
+    What it does not do is put focus back where it came from. */
+function openSheet(el) {
+  sheetOpener = document.activeElement;
+  el.showModal();
+}
+
+function closeSheet(el) {
+  el.close();
+  if (sheetOpener?.isConnected) sheetOpener.focus();
+  sheetOpener = null;
+}
+
+function bindSheet(el) {
+  el.addEventListener('click', e => {
+    // The backdrop is the dialog element itself; a click on it should dismiss.
+    if (e.target === el || e.target.closest('[data-close]')) closeSheet(el);
+  });
+  el.addEventListener('cancel', e => { e.preventDefault(); closeSheet(el); });
+}
+
+/* ---------------------------------------------------- announce + toast */
+
+/** Screen-reader announcement. Re-setting identical text does not re-announce,
+    so a space is appended when the message repeats. */
+function announce(msg) {
+  const el = $('#live');
+  el.textContent = el.textContent === msg ? msg + ' ' : msg;
+}
+
+let toastTimer = null;
+let toastUndo = null;
+
+/** A short confirmation with a way back. Adding to a plate is one tap and
+    easy to do by accident on a phone, so it is undoable rather than silent. */
+function toast(msg, undo) {
+  const el = $('#toast');
+  $('#toastMsg').textContent = msg;
+  toastUndo = undo || null;
+  $('#toastUndo').hidden = !undo;
+  el.hidden = false;
+  announce(msg);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 4200);
+}
+
+function hideToast() {
+  $('#toast').hidden = true;
+  toastUndo = null;
+}
+
 const openGoals = () => { syncGoalInputs(); $('#goalSheet').showModal(); };
 
-/* Theme is a stored choice, defaulting to light.
-
-   It used to follow prefers-color-scheme with no way to override, so on a Mac
-   set to dark there was no route to the light design at all -- not even to look
-   at it. */
-const THEME_KEY = 'dining.theme';
-
-function setTheme(mode) {
-  document.documentElement.dataset.theme = mode;
-  try { localStorage.setItem(THEME_KEY, mode); } catch {}
-  const icon = $('#themeToggle')?.querySelector('use');
-  if (icon) icon.setAttribute('href', mode === 'dark' ? '#ic-sun' : '#ic-moon');
-  $('#themeToggle')?.setAttribute('aria-label',
-    mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
-}
-
-function loadTheme() {
-  let saved = null;
-  try { saved = localStorage.getItem(THEME_KEY); } catch {}
-  // Dark is the default. The toggle is still there for anyone who wants light.
-  setTheme(saved === 'dark' || saved === 'light' ? saved : 'dark');
-}
 
 function syncInputs() {
   $('#fMinProtein').value = state.minProtein;
@@ -1074,24 +1112,40 @@ function renderHero() {
 
 function renderPlate() {
   const n = allPlated().length;
-  // Only the tab carries a count now; the header duplicate is gone.
-  [$('#plateCount2')].forEach(el => {
-    if (!el) return;
-    el.hidden = !n;
-    el.textContent = n;
-  });
+  const cal = Math.round(totals().cal);
+  const badge = $('#plateBadge');
+  badge.hidden = !n;
+  badge.textContent = n;
+  // The tab carries the running total, so the number you care about is visible
+  // without opening the tab that holds it.
+  $('#plateCal').textContent = n ? `${cal.toLocaleString()} cal` : '';
   renderHero();
   if (state.tab === 'plate') renderPlateView();
 
   $$('#content [data-add]').forEach(btn => {
     const on = plateFor().some(p => p.recipe_id === btn.dataset.add);
-    btn.dataset.in = on ? '1' : '0';
-    btn.innerHTML = on ? `<svg class="gi" aria-hidden="true"><use href="#ic-check"/></svg>` : `<svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg>`;
-    btn.setAttribute('aria-label', `${on ? 'Remove from' : 'Add to'} plate`);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.querySelector('use').setAttribute('href', on ? '#ic-check' : '#ic-plus');
+    const name = btn.getAttribute('aria-label').replace(/^(Add|Remove) /, '')
+      .replace(/ (to|from) plate$/, '');
+    btn.setAttribute('aria-label', `${on ? 'Remove' : 'Add'} ${name} ${on ? 'from' : 'to'} plate`);
   });
 }
 
 /** Add to, or remove from, the meal currently being browsed. */
+/** Toggle from the browse list, with a confirmation and a way back. */
+function addOrRemove(recipeId, meal = state.meal) {
+  const item = state.items.get(recipeId);
+  const was = plateFor(meal).some(p => p.recipe_id === recipeId);
+  togglePlate(recipeId, meal);
+  const name = item?.name || 'Item';
+  if (was) {
+    toast(`Removed ${name}`, () => { togglePlate(recipeId, meal); render(); });
+  } else {
+    toast(`Added ${name} to ${meal}`, () => { togglePlate(recipeId, meal); render(); });
+  }
+}
+
 function togglePlate(recipeId, meal = state.meal) {
   const plate = plateFor(meal);
   const at = plate.findIndex(p => p.recipe_id === recipeId);
@@ -1111,6 +1165,7 @@ function togglePlate(recipeId, meal = state.meal) {
 /* ------------------------------------------------------------------- stats */
 
 async function openStats() {
+  showSheetLoading('About this data');
   const d = await api('/api/stats');
   const pct = n => `${(n / d.recipes * 100).toFixed(1)}%`;
   const fetched = d.last_fetched
@@ -1126,10 +1181,10 @@ async function openStats() {
       <div><h2>About this data</h2><p>Scraped from the published menus, not live</p></div>
       <button class="sheet__close" data-close><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
     </div>
-    <div class="bignums">
-      <div class="bignum"><b>${d.days}</b><span>days</span></div>
-      <div class="bignum"><b>${d.recipes.toLocaleString()}</b><span>recipes</span></div>
-      <div class="bignum"><b>${d.menu_rows.toLocaleString()}</b><span>menu rows</span></div>
+    <div class="targets">
+      <div class="target"><b>${d.days}</b><span>days</span></div>
+      <div class="target"><b>${d.recipes.toLocaleString()}</b><span>recipes</span></div>
+      <div class="target"><b>${d.menu_rows.toLocaleString()}</b><span>menu rows</span></div>
     </div>
     <p class="hint">Covering ${d.first_date} to ${d.last_date}. Labels last fetched ${esc(fetched)} —
       run <code>python3 -m dining.refresh</code> to update.</p>
@@ -1161,10 +1216,31 @@ async function openStats() {
 function showSheet(html) {
   const sheet = $('#sheet');
   sheet.innerHTML = `<div class="sheet__body">${html}</div>`;
-  if (!sheet.open) sheet.showModal();
+  // Through openSheet, so this one also returns focus to whatever opened it.
+  if (!sheet.open) openSheet(sheet);
+}
+
+/** Put the sheet up immediately with a placeholder, then fill it.
+
+    Both of these fetch before they can render, and on a remote database that
+    is a few hundred milliseconds of the button appearing to do nothing. */
+function showSheetLoading(title) {
+  showSheet(`
+    <div class="sheet__grip" aria-hidden="true"></div>
+    <div class="sheet__head">
+      <div><h2>${esc(title)}</h2></div>
+      <button class="iconbtn" data-close aria-label="Close">
+        <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="sheet__content" aria-busy="true">
+      <span class="sk__line sk__line--name"></span>
+      <span class="sk__line sk__line--sub"></span>
+      <span class="sk__block"></span>
+    </div>`);
 }
 
 async function openDetail(recipeId) {
+  showSheetLoading(state.items.get(recipeId)?.name || 'Item');
   const item = await api('/api/item', new URLSearchParams({ id: recipeId }).toString());
   if (item.error) return;
 
@@ -1199,11 +1275,11 @@ async function openDetail(recipeId) {
       <button class="sheet__close" data-close><svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg></button>
     </div>
     ${warn}
-    <div class="bignums">
-      <div class="bignum"><b>${item.calories == null ? '–' : Math.round(item.calories)}</b><span>calories</span></div>
-      <div class="bignum bignum--p"><b>${num(item.nutrients.protein_g, 1)}g</b><span>protein</span></div>
-      <div class="bignum bignum--c"><b>${num(item.nutrients.total_carbs_g, 1)}g</b><span>carbs</span></div>
-      <div class="bignum bignum--f"><b>${num(item.nutrients.total_fat_g, 1)}g</b><span>fat</span></div>
+    <div class="targets">
+      <div class="target"><b>${item.calories == null ? '–' : Math.round(item.calories)}</b><span>calories</span></div>
+      <div class="target"><b>${num(item.nutrients.protein_g, 1)}g</b><span>protein</span></div>
+      <div class="target"><b>${num(item.nutrients.total_carbs_g, 1)}g</b><span>carbs</span></div>
+      <div class="target"><b>${num(item.nutrients.total_fat_g, 1)}g</b><span>fat</span></div>
     </div>
     <button class="${inPlate ? 'ghostbtn' : 'primarybtn'}" data-add="${esc(item.recipe_id)}"
       data-in="${inPlate ? '1' : '0'}">${inPlate ? 'Remove from plate' : 'Add to plate'}</button>
@@ -1325,25 +1401,12 @@ function bind() {
 
   $('#dateStrip').addEventListener('click', e => {
     const b = e.target.closest('[data-date]');
-    if (!b || b.disabled) return;
-    state.date = b.dataset.date;
-    state.collapsed.clear();
-    renderDates(); renderMeals(); renderHalls(); loadPlate(); render();
+    if (b && !b.disabled) selectDate(b.dataset.date);
   });
 
   $('#mealTabs').addEventListener('click', e => {
     const b = e.target.closest('[data-meal]');
-    if (!b || b.disabled) return;
-    state.meal = b.dataset.meal;
-    state.collapsed.clear();
-    renderMeals(); renderHalls(); render();
-  });
-
-  $('#hallPills').addEventListener('change', e => {
-    if (e.target.id !== 'hallSelect') return;
-    state.location = e.target.value;
-    state.collapsed.clear();
-    renderHalls(); render();
+    if (b && !b.disabled) selectMeal(b.dataset.meal);
   });
 
   let timer;
@@ -1355,7 +1418,7 @@ function bind() {
   });
   $('#searchClear').addEventListener('click', clearSearch);
 
-  $('#filterToggle').addEventListener('click', () => $('#filterSheet').showModal());
+  $('#filterToggle').addEventListener('click', () => openSheet($('#filterSheet')));
 
   $('#activeFilters').addEventListener('click', e => {
     if (e.target.closest('[data-afclear]')) return resetFilters();
@@ -1364,6 +1427,12 @@ function bind() {
   });
 
   $('#content').addEventListener('click', e => {
+    const add = e.target.closest('[data-add]');
+    if (add) { addOrRemove(add.dataset.add); return; }
+
+    const open = e.target.closest('[data-id]');
+    if (open) { openDetail(open.dataset.id); return; }
+
     const all = e.target.closest('[data-collapseall]');
     if (all) {
       const keys = stationKeys(state.menu || { locations: [] });
@@ -1371,33 +1440,62 @@ function bind() {
       render();
       return;
     }
+
     // Toggling in place rather than re-rendering keeps the scroll position,
     // which matters on a 300-item All halls page.
     const collapse = e.target.closest('[data-collapse]');
     if (collapse) {
       const key = collapse.dataset.collapse;
-      const open = state.collapsed.has(key);
-      open ? state.collapsed.delete(key) : state.collapsed.add(key);
-      collapse.setAttribute('aria-expanded', String(open));
-      collapse.parentElement.querySelector('.cards').hidden = !open;
-      return;
+      const wasOpen = !state.collapsed.has(key);
+      wasOpen ? state.collapsed.add(key) : state.collapsed.delete(key);
+      collapse.setAttribute('aria-expanded', String(!wasOpen));
+      const list = document.getElementById(collapse.getAttribute('aria-controls'));
+      if (list) list.hidden = wasOpen;
     }
-    const add = e.target.closest('[data-add]');
-    if (add) { e.stopPropagation(); togglePlate(add.dataset.add); return; }
-    const c = e.target.closest('.card');
-    if (c) openDetail(c.dataset.id);
   });
 
-  $('#content').addEventListener('keydown', e => {
-    const c = e.target.closest('.card');
-    if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDetail(c.dataset.id); }
-  });
 
   $('#statsToggle').addEventListener('click', openStats);
 
-  $('#themeToggle').addEventListener('click', () => {
-    setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  [$('#hallSheet'), $('#filterSheet'), $('#goalSheet'), $('#sheet')].forEach(bindSheet);
+
+  $('#hallBtn').addEventListener('click', () => openSheet($('#hallSheet')));
+  $('#hallOptions').addEventListener('click', e => {
+    const b = e.target.closest('[data-loc]');
+    if (!b) return;
+    state.location = b.dataset.loc;
+    state.collapsed.clear();
+    closeSheet($('#hallSheet'));
+    renderHalls(); render();
   });
+
+  $('#toastUndo').addEventListener('click', () => {
+    const fn = toastUndo;
+    hideToast();
+    fn?.();
+  });
+
+  /* Arrow-key navigation for the two tablists, per the WAI-ARIA pattern:
+     arrows move and activate, Home/End jump to the ends, and only the selected
+     tab is in the tab order so the strip is one stop, not seven. */
+  const arrowNav = (container, selector, activate) => {
+    container.addEventListener('keydown', e => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      const tabs = $$(selector, container).filter(b => !b.disabled);
+      if (!tabs.length) return;
+      const i = tabs.indexOf(document.activeElement);
+      let next;
+      if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = tabs.length - 1;
+      else if (i < 0) next = 0;
+      else next = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      e.preventDefault();
+      tabs[next].focus();
+      activate(tabs[next]);
+    });
+  };
+  arrowNav($('#dateStrip'), '[data-date]', b => selectDate(b.dataset.date));
+  arrowNav($('#mealTabs'), '[data-meal]', b => selectMeal(b.dataset.meal));
 
   $('#sheet').addEventListener('click', e => {
     if (e.target.closest('[data-close]') || e.target === $('#sheet')) { $('#sheet').close(); return; }
@@ -1477,7 +1575,7 @@ async function init() {
   document.body.dataset.booting = '0';
   state.meta = meta;
   document.title = state.meta.college_name;
-  $('#collegeName').textContent = state.meta.college_name;
+
 
   const { dates, today, meals, locations } = state.meta;
   state.date = dates.includes(today) ? today : dates[0];
@@ -1495,7 +1593,6 @@ async function init() {
     `<button type="button" class="chip chip--diet" data-value="${d}" aria-pressed="false">${
       titleCase(d)}</button>`).join('');
 
-  loadTheme();
   loadGoals(); syncGoalInputs();
   renderDates(); renderMeals(); renderHalls(); bind(); loadPlate();
   renderActiveFilters(); render();
