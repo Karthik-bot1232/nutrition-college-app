@@ -800,3 +800,14 @@ html, body { overscroll-behavior: none; }
 @media (display-mode: standalone) {
   body { min-height: 100dvh; }
 }
+
+/* Shown only when the service worker answered from cache. A menu from a
+   previous visit is still useful; presenting it as today's would not be. */
+.offlinebar {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s3); margin-bottom: var(--s3);
+  border-radius: var(--r-ctl);
+  background: var(--warn-wash); border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent);
+  color: var(--warn); font-size: var(--t-sm);
+}
+.offlinebar .gi { flex: none; width: 16px; height: 16px; }
