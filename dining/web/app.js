@@ -309,21 +309,40 @@ const STATS = [
   ['fat', 'ic-fat', 'Fat', 'total_fat_g'],
 ];
 
+/* Calories lead; the macros follow, quietly.
+
+   Four tiles of identical size and weight is four things shouting the same
+   volume, which is no hierarchy at all -- the eye has nowhere to land and every
+   card looks like every other card. Calories are the number nearly everyone is
+   actually scanning for, so they get the size, and the three macros drop to a
+   supporting row. Same information, an order of importance added. */
 function statTiles(item) {
-  const cells = STATS.map(([cls, icon, label, key]) => {
-    const raw = key === null ? item.calories : item.nutrients[key];
-    const shown = raw == null ? '–' : Math.round(raw) + (key === null ? '' : 'g');
-    const spoken = raw == null
-      ? `${label} not published`
-      : `${label} ${Math.round(raw)}${key === null ? '' : ' grams'}`;
+  const [cal, ...macros] = STATS;
+  const calVal = item.calories;
+
+  const lead = `<div class="lead">
+    <svg class="lead__ic" aria-hidden="true"><use href="#${cal[1]}"/></svg>
+    <b aria-hidden="true">${calVal == null ? '–' : Math.round(calVal)}</b>
+    <span aria-hidden="true">Calories</span>
+    <span class="sr">${calVal == null ? 'Calories not published'
+      : `${Math.round(calVal)} calories`}</span>
+  </div>`;
+
+  const rest = macros.map(([cls, icon, label, key]) => {
+    const raw = item.nutrients[key];
+    const shown = raw == null ? '–' : Math.round(raw) + 'g';
+    // No icon down here. At 13px it was a smudge, and it cost the width that
+    // was truncating "Protein" to "Prot…" -- the word is the label, so the
+    // colour moves onto the figure and the glyph goes.
     return `<div class="stat stat--${cls}">
-      <svg class="stat__ic" aria-hidden="true"><use href="#${icon}"/></svg>
       <b aria-hidden="true">${shown}</b>
       <span aria-hidden="true">${label}</span>
-      <span class="sr">${spoken}</span>
+      <span class="sr">${raw == null ? `${label} not published`
+        : `${label} ${Math.round(raw)} grams`}</span>
     </div>`;
   }).join('');
-  return `<div class="stats">${cells}</div>`;
+
+  return `${lead}<div class="stats">${rest}</div>`;
 }
 
 // Two allergens then a count, not three: the chip sits beside the diet badges
