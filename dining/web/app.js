@@ -919,6 +919,28 @@ function syncGoalInputs() {
 
 const openGoals = () => { syncGoalInputs(); $('#goalSheet').showModal(); };
 
+/* Theme is a stored choice, defaulting to light.
+
+   It used to follow prefers-color-scheme with no way to override, so on a Mac
+   set to dark there was no route to the light design at all -- not even to look
+   at it. */
+const THEME_KEY = 'dining.theme';
+
+function setTheme(mode) {
+  document.documentElement.dataset.theme = mode;
+  try { localStorage.setItem(THEME_KEY, mode); } catch {}
+  const icon = $('#themeToggle')?.querySelector('use');
+  if (icon) icon.setAttribute('href', mode === 'dark' ? '#ic-sun' : '#ic-moon');
+  $('#themeToggle')?.setAttribute('aria-label',
+    mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+}
+
+function loadTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch {}
+  setTheme(saved === 'dark' || saved === 'light' ? saved : 'light');
+}
+
 function syncInputs() {
   $('#fMinProtein').value = state.minProtein;
   $('#fMaxCalories').value = state.maxCalories;
@@ -1038,7 +1060,8 @@ function renderHero() {
 
 function renderPlate() {
   const n = allPlated().length;
-  [$('#plateCount'), $('#plateCount2')].forEach(el => {
+  // Only the tab carries a count now; the header duplicate is gone.
+  [$('#plateCount2')].forEach(el => {
     if (!el) return;
     el.hidden = !n;
     el.textContent = n;
@@ -1362,6 +1385,10 @@ function bind() {
 
   $('#statsToggle').addEventListener('click', openStats);
 
+  $('#themeToggle').addEventListener('click', () => {
+    setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+
   $('#sheet').addEventListener('click', e => {
     if (e.target.closest('[data-close]') || e.target === $('#sheet')) { $('#sheet').close(); return; }
     const add = e.target.closest('[data-add]');
@@ -1377,7 +1404,6 @@ function bind() {
     if (rm) { togglePlate(rm.dataset.remove); $('#sheet').close(); }
   });
 
-  $('#plateToggle').addEventListener('click', () => setTab('plate'));
   $('#hero').addEventListener('click', e => {
     if (e.target.closest('#plateClear')) { state.plates[state.meal] = []; savePlate(); render(); }
   });
@@ -1459,6 +1485,7 @@ async function init() {
     `<button type="button" class="chip chip--diet" data-value="${d}" aria-pressed="false">${
       titleCase(d)}</button>`).join('');
 
+  loadTheme();
   loadGoals(); syncGoalInputs();
   renderDates(); renderMeals(); renderHalls(); bind(); loadPlate();
   renderActiveFilters(); render();
