@@ -45,6 +45,13 @@
   <symbol id="ic-plate" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/>
   </symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 2.6v2.2M12 19.2v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/>
+  </symbol>
+  <symbol id="ic-moon" viewBox="0 0 24 24">
+    <path d="M20.5 14.2A8.6 8.6 0 0 1 9.8 3.5a8.6 8.6 0 1 0 10.7 10.7Z"/>
+  </symbol>
   <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></symbol>
   <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4.8 12.6 9.6 17.4 19.2 6.9"/></symbol>
   <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></symbol>
@@ -60,16 +67,18 @@
   <div class="appbar__brandrow">
     <div class="wrap appbar__top">
       <div class="brand">
-        <h1 id="collegeName">Dining</h1>
-        <p class="brand__sub" id="dayLabel">&nbsp;</p>
+        <span class="brand__mark" aria-hidden="true"></span>
+        <div class="brand__text">
+          <h1 id="collegeName">Dining</h1>
+          <p class="brand__sub" id="dayLabel">&nbsp;</p>
+        </div>
       </div>
       <div class="appbar__actions">
+        <button class="iconbtn" id="themeToggle" aria-label="Switch theme">
+          <svg class="gi gi--theme" aria-hidden="true"><use href="#ic-sun"/></svg>
+        </button>
         <button class="iconbtn" id="statsToggle" aria-label="About this data">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.9"/></svg>
-        </button>
-        <button class="iconbtn iconbtn--plate" id="plateToggle" aria-label="Your plate">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
-          <span class="iconbtn__count" id="plateCount" hidden>0</span>
         </button>
       </div>
     </div>

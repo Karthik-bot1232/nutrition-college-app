@@ -1,51 +1,56 @@
 /* Local UI for the dining scraper. No build step, no dependencies. */
 
 :root {
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-2: #f4f5f7;
-  --tile: #f7f8fa;
-  --text: #0b0d12;
-  --muted: #646d7c;
-  --faint: #666f7e;
-  --border: #e7e9ee;
-  --border-strong: #d5d9e0;
+  /* Warm neutrals, not blue-grey. Every starter ships the same cold slate ramp,
+     and a page built out of it reads as untouched no matter what is arranged on
+     top. These are the same lightness steps pulled towards paper. */
+  --bg: #f7f4f0;
+  --surface: #fffdfb;
+  --surface-2: #f2eee9;
+  --tile: #f4f0eb;
+  --text: #17130f;
+  --muted: #5f564e;
+  --faint: #6b6159;
+  --border: #e6e0d8;
+  --border-strong: #d3cabe;
 
-  /* Selected state is ink, not colour: with three macro colours already on
-     every card, a fourth accent hue makes the page read as noise. */
-  --ink: #0b0d12;
-  --on-ink: #ffffff;
-  --raised: #ffffff;
-  --accent: #15803d;
-  --accent-soft: #e7f6ec;
+  /* The school's own red, dark enough to be read as text (5.8:1 on card).
+     A nutrition app for one university has an identity available to it for
+     free, and using it is the difference between "an app" and "our app". */
+  --brand: #c8102e;
+  --brand-ink: #9e0b23;
+  --brand-soft: #fdeceF;
+  /* Maryland gold is #FFD200, which is 1.4:1 on white and unusable as text.
+     It stays a fill -- the today dot, a highlight -- and the text-safe version
+     is this. */
+  --gold: #ffd200;
+  --gold-ink: #7a6000;
+  --gold-soft: #fdf3d7;
 
-  --protein: #e2464a;
-  --carbs:   #eb9b21;
-  --fat:     #3b7ff2;
-  --track:   #e9ebf0;
+  --ink: #17130f;
+  --on-ink: #fffdfb;
+  --raised: #fffdfb;
+  --accent: #117036;
+  --accent-soft: #e4f4e9;
 
-  /* Text-safe variants of the three macro hues. The fills above are chosen to
-     read as fills -- rings, bars, dots -- and as 10px type on a near-white chip
-     the orange lands at 2.1:1. These are the same hues taken dark enough to
-     pass 4.5:1, and they are used only where a macro colour carries a letter. */
-  --protein-ink: #b32a2e;
-  --carbs-ink:   #7d5200;
+  --protein: #c8102e;
+  --carbs:   #a06800;
+  --fat:     #1a56c4;
+  --track:   #e9e3da;
+
+  --protein-ink: #a80d26;
+  --carbs-ink:   #7a6000;
   --fat-ink:     #1a56c4;
+  --cal-ink:     #b0410f;
 
-  --warn-bg: #fff6e0;
-  --warn-text: #8a5a00;
-  --warn-border: #f5dca0;
+  --warn-bg: #fdf3d7;
+  --warn-text: #7a6000;
+  --warn-border: #eeddaf;
 
-  --shadow: 0 1px 2px rgba(11,13,18,.05);
-  --shadow-md: 0 2px 8px rgba(11,13,18,.07);
-  --shadow-lg: 0 18px 48px rgba(11,13,18,.22);
+  --shadow: 0 1px 2px rgba(35, 25, 15, .05);
+  --shadow-md: 0 4px 14px rgba(35, 25, 15, .08);
+  --shadow-lg: 0 18px 48px rgba(35, 25, 15, .22);
 
-  /* Two faces, with a job each. Body text stays on the system stack because it
-     is the most readable thing on any device and nobody thanks you for a
-     webfont in a paragraph. Headings and figures get Space Grotesk, which has
-     an actual voice -- and since this app is mostly numbers, the numerals doing
-     something other than Helvetica's is most of the character it has. If the
-     font never arrives, everything falls back and nothing breaks. */
   /* A type scale with actual steps in it. The page had nineteen sizes and
      sixty-one of them between 10px and 14px, which is not a hierarchy -- it is
      a wall of small text with nothing for the eye to land on. Six sizes, each
@@ -88,8 +93,13 @@
   --fat-soft: #e8effd;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Dark is available, but it is no longer assumed.
+
+   This followed prefers-color-scheme, which meant anyone whose Mac is in dark
+   mode had never once seen the light design -- including while asking for it.
+   A theme is a choice the app should offer, not one it should infer and then
+   never mention. */
+:root[data-theme="dark"] {
     --bg: #0a0c0f;
     --surface: #14171c;
     --surface-2: #1a1e24;
@@ -129,7 +139,6 @@
     --shadow: none;
     --shadow-md: none;
     --shadow-lg: 0 20px 52px rgba(0,0,0,.65);
-  }
 }
 
 * { box-sizing: border-box; }
@@ -921,3 +930,54 @@ body[data-booting="1"] .toolbar { opacity: .45; }
 body[data-booting="1"] .weekdays { min-height: 46px; }
 body[data-booting="1"] .segmented { min-height: 40px; }
 body[data-booting="1"] .pills { min-height: 32px; }
+
+/* ---------- identity ---------- */
+
+/* A Maryland flag quarter, drawn in CSS. Four blocks of the state's red and
+   gold, which is what the university's own mark is built from.
+
+   This is the one piece of the page that exists purely because a person chose
+   it. No starter template produces it, and it is what stops the header reading
+   as "app title, top left" on a page that could otherwise belong to anything. */
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand__mark {
+  width: 28px; height: 28px; flex: none; border-radius: 8px;
+  /* Quartered, the way the state flag is. Stacked linear-gradients each painted
+     over the last and left it solid gold; a conic sweep gives four true
+     quarters in one declaration. */
+  background: conic-gradient(
+    var(--brand) 0 25%, var(--gold) 25% 50%,
+    var(--brand) 50% 75%, var(--gold) 75% 100%);
+  box-shadow: inset 0 0 0 1px rgba(23, 19, 15, .14);
+}
+.brand__text { min-width: 0; }
+.brand h1 { letter-spacing: -.03em; }
+
+/* The current day carries the school's gold rather than a generic accent. */
+.day[data-today="1"]::after { background: var(--brand); }
+.day[data-today="1"][aria-selected="true"]::after { background: var(--gold); }
+
+.gi--theme { width: 17px; height: 17px; }
+
+/* Selected states use the brand, so the loudest thing on screen is the school's
+   colour rather than undifferentiated black. */
+.pill[aria-selected="true"] {
+  background: var(--brand); border-color: var(--brand); color: #fff;
+}
+.pill[aria-selected="true"] small { color: rgba(255,255,255,.72); }
+.day[aria-selected="true"] { background: var(--brand); }
+.day[aria-selected="true"] span,
+.day[aria-selected="true"] strong { color: #fff; }
+
+:root[data-theme="dark"] .brand__mark {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+}
+
+/* "University of Maryland" is a long name and the header also carries the
+   mark and two controls. Below 420px the title steps down rather than
+   breaking across two lines and shoving the date out of the block. */
+@media (max-width: 420px) {
+  .brand h1 { font-size: 16.5px; }
+  .brand { gap: 9px; }
+  .brand__mark { width: 25px; height: 25px; }
+}
