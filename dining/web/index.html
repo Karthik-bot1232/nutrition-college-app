@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dining">
+<link rel="manifest" href="/manifest.webmanifest">
 <title>Dining</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,10 +43,11 @@
   <div class="sidebar">
     <header class="topbar">
       <div class="wrap">
+        <!-- Campus first: it is the question you answer before any other. -->
         <div class="topbar__row">
           <span class="brandmark" aria-hidden="true"></span>
           <button class="hallbtn" id="hallBtn" aria-haspopup="dialog">
-            <span class="sr">Dining hall,</span>
+            <span class="sr">Campus,</span>
             <span class="hallbtn__name" id="hallName">Loading…</span>
             <span class="hallbtn__count" id="hallCount" aria-hidden="true"></span>
             <svg class="gi" aria-hidden="true"><use href="#ic-chevron"/></svg>
@@ -50,29 +56,29 @@
             <svg class="gi" aria-hidden="true"><use href="#ic-info"/></svg>
           </button>
         </div>
+
+        <!-- Search right under it, always on screen, never scrolled away. -->
+        <div class="searchrow">
+          <div class="search">
+            <svg class="gi gi--search" aria-hidden="true"><use href="#ic-search"/></svg>
+            <label class="sr" for="search">Search items</label>
+            <input id="search" type="search" placeholder="Search items…"
+                   autocomplete="off" spellcheck="false" enterkeyhint="search">
+            <button class="search__clear" id="searchClear" hidden aria-label="Clear search">
+              <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
+            </button>
+          </div>
+          <button class="filterbtn" id="filterToggle" aria-haspopup="dialog"
+                  aria-label="Filters">
+            <svg class="gi" aria-hidden="true"><use href="#ic-filter"/></svg>
+            <span class="filterbtn__count" id="filterCount" hidden>0</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <div class="wrap controls">
-      <div>
-        <h2 class="sidebar__label">Meal</h2>
-        <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal period"></div>
-      </div>
-      <div class="searchrow">
-        <div class="search">
-          <svg class="gi gi--search" aria-hidden="true"><use href="#ic-search"/></svg>
-          <label class="sr" for="search">Search items</label>
-          <input id="search" type="search" placeholder="Search items…" autocomplete="off" spellcheck="false">
-          <button class="search__clear" id="searchClear" hidden aria-label="Clear search">
-            <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
-          </button>
-        </div>
-        <button class="filterbtn" id="filterToggle" aria-haspopup="dialog">
-          <svg class="gi" aria-hidden="true"><use href="#ic-filter"/></svg>
-          <span>Filters</span>
-          <span class="filterbtn__count" id="filterCount" hidden>0</span>
-        </button>
-      </div>
+      <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal period"></div>
     </div>
   </div>
 

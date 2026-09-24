@@ -315,8 +315,11 @@ ul, ol { padding: 0; list-style: none; }
 }
 .topbar__row {
   display: flex; align-items: center; gap: var(--s2);
-  min-height: var(--tap); padding: var(--s2) 0;
+  min-height: var(--tap); padding: var(--s2) 0 0;
 }
+/* Both rows of the bar. Search sits directly under the campus button and
+   neither ever scrolls away. */
+.topbar .searchrow { padding: var(--s2) 0 var(--s3); }
 
 /* The hall selector: compact, tappable, opens a sheet. */
 .hallbtn {
@@ -395,7 +398,7 @@ ul, ol { padding: 0; list-style: none; }
 .weeknav__arrow:disabled { opacity: .34; cursor: default; }
 
 /* ---- controls row ---- */
-.controls { display: grid; gap: var(--s3); padding-top: var(--s3); padding-bottom: var(--s4); }
+.controls { padding-top: var(--s3); padding-bottom: var(--s3); }
 .searchrow { display: flex; gap: var(--s2); }
 .search { position: relative; flex: 1; display: flex; align-items: center; }
 .search .gi--search { position: absolute; left: var(--s3); color: var(--text-3); pointer-events: none; width: 17px; height: 17px; }
@@ -417,17 +420,19 @@ ul, ol { padding: 0; list-style: none; }
 .search__clear:hover { color: var(--text); background: var(--card-2); }
 
 .filterbtn {
-  flex: none; display: inline-flex; align-items: center; gap: var(--s2);
-  min-height: var(--tap); padding: 0 var(--s4); border-radius: var(--r-ctl);
-  background: var(--card); border: 1px solid var(--border);
-  font-size: var(--t-sm); font-weight: 650; color: var(--text);
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  width: var(--tap); height: var(--tap); border-radius: var(--r-ctl);
+  background: var(--card); border: 1px solid var(--border); color: var(--text);
   transition: border-color var(--dur) var(--ease);
 }
+.filterbtn:active { transform: scale(var(--press)); }
 .filterbtn:hover { border-color: var(--border-control); }
 .filterbtn__count {
-  min-width: 20px; padding: 1px 6px; border-radius: var(--r-pill);
+  position: absolute; top: -5px; right: -5px;
+  min-width: 19px; height: 19px; padding: 0 5px; border-radius: var(--r-pill);
   background: var(--accent); color: var(--on-accent);
-  font-size: var(--t-xs); font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: 10px; font-weight: 800; line-height: 19px; text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 /* =========================================================================
@@ -710,68 +715,47 @@ ul, ol { padding: 0; list-style: none; }
 .nutrients td { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
 
 /* =========================================================================
-   Responsive. Mobile is the base above; these only add.
+   Phone app, not a responsive site.
+
+   The layout does not reflow into a sidebar and columns on a large screen,
+   because this is not a page that happens to work on a phone -- it is an app
+   that happens to be openable in a browser. On anything wider than a handset
+   it stays handset-width and centres, the way a phone app looks when it is
+   mirrored onto a desk.
    ========================================================================= */
 
-/* ---- Tablet: two columns, filters inline ---- */
-@media (min-width: 768px) {
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
-  .controls { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .controls .segmented { grid-column: 1 / -1; }
-  .quickchips { display: flex; }
+:root { --app-w: 430px; }
+
+.shell {
+  width: 100%; max-width: var(--app-w); margin: 0 auto;
+  min-height: 100dvh; background: var(--bg);
+  position: relative;
 }
 
-/* ---- Desktop: sidebar + three columns, centred at 1280 ---- */
-@media (min-width: 1200px) {
-  .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); align-items: start;
-           max-width: var(--maxw); margin: 0 auto; }
+/* Only the tab bar is fixed, so only it needs positioning against the viewport.
+   The top bar is sticky -- it is already inside the app column, and `left` on a
+   sticky box is an offset from where it sits, not a position, so setting it
+   shunted the whole bar sideways. */
+.tabbar {
+  left: 50%; translate: -50% 0;
+  width: 100%; max-width: var(--app-w); right: auto;
+}
 
-  .sidebar {
-    position: sticky; top: 0; height: 100dvh; overflow-y: auto;
-    display: flex; flex-direction: column; gap: var(--s5);
-    padding: var(--s5) var(--s4) calc(var(--nav-h) + var(--s5));
-    border-right: 1px solid var(--border);
+/* Beyond phone width the app sits on a backdrop rather than stretching. */
+@media (min-width: 520px) {
+  body { background: #09090b; }
+  .shell {
+    border-inline: 1px solid var(--border);
+    min-height: 100dvh;
   }
-  .sidebar .controls { grid-template-columns: 1fr; padding: 0; }
-  .sidebar .searchrow { flex-direction: column; }
-  .sidebar .segmented { grid-auto-flow: row; grid-auto-columns: auto; }
-  .sidebar .filterbtn { justify-content: center; }
-  .sidebar__label {
-    display: block; font-size: var(--t-xs); font-weight: 700;
-    letter-spacing: .06em; color: var(--text-3); margin-bottom: var(--s2);
-  }
-
-  .main { min-width: 0; padding: var(--s5) var(--s6) var(--s8); }
-  .topbar { position: static; background: none; backdrop-filter: none; border: 0;
-            padding: 0; }
-  /* In a 280px sidebar the mark and the info button were squeezing the hall
-     name down to "So…". They take their own row and the selector gets the
-     width, which is what it is there to show. */
-  .topbar__row { flex-wrap: wrap; padding: 0 0 var(--s3); row-gap: var(--s3); }
-  .topbar__row .brandmark { order: 1; }
-  .topbar__row .iconbtn { order: 2; margin-left: auto; }
-  .topbar__row .hallbtn { order: 3; flex: 1 0 100%; }
-
-  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-  /* The sidebar names the section, so the bar joins it instead of spanning the
-     window. */
-  .tabbar { width: 280px; right: auto; left: max(0px, calc(50vw - var(--maxw) / 2)); }
-  .tabbar__inner { max-width: none; }
-  body { padding-bottom: 0; }
-
-  .station__head { top: 0; }
 }
 
-/* Between 1200 and the max width the grid is already centred by .shell. */
-@media (min-width: 1280px) {
-  .shell { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-}
+/* One content column at every size: two cards side by side is a tablet idea. */
+.cards { grid-template-columns: minmax(0, 1fr); }
 
 /* ---- 200% text zoom ----
-   At 200% a 375px phone behaves like a ~187px viewport. Anything laid out as a
-   fixed row has to be allowed to stack, or the page scrolls sideways -- which
-   WCAG 1.4.10 does not permit for content that can reflow. */
+   At 200% a 375px phone reflows to ~187px, and a row of controls that cannot
+   stack will scroll the page sideways, which 1.4.10 does not allow. */
 @media (max-width: 340px) {
   .segmented { grid-auto-flow: row; grid-auto-columns: auto; }
   .searchrow { flex-direction: column; }
@@ -780,66 +764,39 @@ ul, ol { padding: 0; list-style: none; }
   .topbar__row .hallbtn { flex: 1 0 100%; order: 3; }
   .item { grid-template-columns: minmax(0, 1fr); }
   .addbtn { justify-self: end; }
-  .daymacros, .fgrid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 340px) {
-  .item { grid-template-columns: minmax(0, 1fr) auto; }
+  .daymacros, .fgrid, .targets .target { grid-template-columns: 1fr; flex-basis: 100%; }
   .item__cal b { font-size: 26px; }
-  .targets .target { flex-basis: 100%; }
-  .fgrid { grid-template-columns: 1fr; }
 }
 
-/* Applied filters, shown where the results are rather than buried in the sheet
-   that set them: you can see what is narrowing the list and drop one from here. */
-.chiprow--active { margin-bottom: var(--s4); align-items: center; }
-.chip--remove {
-  background: var(--card); border-color: var(--border);
-  color: var(--text); font-weight: 600;
-}
-.chip--remove:hover { border-color: var(--border-control); }
-.chip--remove .gi { width: 13px; height: 13px; color: var(--text-3); }
-.chip--remove:hover .gi { color: var(--text); }
+/* =========================================================================
+   Native feel
+   ========================================================================= */
 
-/* Expanding a station eases its cards in.
+/* Chrome is furniture: you do not select it, and tapping it does not flash a
+   grey box the way a link does. Item text stays selectable. */
+.topbar, .tabbar, .segmented, .dates, .station__head, .sheet__head,
+.hallbtn, .filterbtn, .addbtn, .tab, .chip, .btn {
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-   The obvious trick -- animating grid-template-rows 0fr to 1fr -- needs exactly
-   one wrapped child, and this grid has one child per card, so it would collapse
-   every row into a single track. Collapsing still uses [hidden], which is what
-   actually takes the cards out of the accessibility tree; the motion is on the
-   way back in, where it can be done without lying about what is on the page. */
-.station__head[aria-expanded="true"] + .cards > li {
-  animation: card-in var(--dur) var(--ease) backwards;
-}
-@keyframes card-in { from { opacity: 0; transform: translateY(-4px); } }
+/* No rubber-band revealing the page behind the app, and no pull-to-refresh
+   firing when you scroll up past the top of a list. */
+html, body { overscroll-behavior: none; }
 
-/* ---- pieces the build and plate views need ---- */
+/* The bars sit above the notch and the home indicator rather than under them. */
+.topbar { padding-top: env(safe-area-inset-top); }
 
-.btn--sm { min-height: 36px; padding: var(--s2) var(--s3); font-size: var(--t-sm); }
-.panel__meta { font-size: var(--t-sm); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.bars { margin-top: var(--s4); }
-.meal__count {
-  flex: none; min-width: 22px; padding: 2px var(--s2); border-radius: var(--r-pill);
-  background: var(--card-2); color: var(--text-2);
-  font-size: var(--t-xs); font-weight: 700; text-align: center;
-  font-variant-numeric: tabular-nums;
+/* Momentum scrolling inside the app column. */
+.shell { -webkit-overflow-scrolling: touch; }
+
+/* Sheets slide from the bottom edge like a native one, and stop short of the
+   status bar. */
+.sheet { max-height: min(88dvh, calc(100dvh - env(safe-area-inset-top) - 24px)); }
+.sheet__body { max-height: inherit; }
+
+/* In standalone mode there is no browser chrome to scroll away, so the app
+   fills the display exactly. */
+@media (display-mode: standalone) {
+  body { min-height: 100dvh; }
 }
-/* Remove-from-plate, inside a row. */
-.remove {
-  flex: none; width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: var(--r-ctl); color: var(--text-3);
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
-}
-.remove:hover { color: var(--danger); background: var(--danger-wash); }
-.remove .gi { width: 15px; height: 15px; }
-/* A row that is only a row, not a button. */
-li.row { cursor: default; }
-li.row:hover { background: var(--card-2); }
-.sheet__h3 {
-  margin: var(--s5) 0 var(--s3); font-size: var(--t-xs); font-weight: 700;
-  letter-spacing: .06em; color: var(--text-3);
-}
-.sheet__content > .sheet__h3:first-child { margin-top: 0; }
-.ingredients { font-size: var(--t-sm); color: var(--text-2); line-height: 1.6; }
-.served { display: grid; gap: var(--s2); font-size: var(--t-sm); color: var(--text-2); }
-.served b { color: var(--text); font-weight: 620; }
