@@ -16,6 +16,7 @@ both are worth knowing before adding a query:
 """
 
 import os
+import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -143,11 +144,30 @@ class Database:
             return
         except psycopg.Error:
             pass
+        self.reconnect()
+
+    def reconnect(self) -> None:
+        """Drop the current link, whatever state it is in, and open a new one."""
         try:
             self._conn.close()
         except psycopg.Error:
             pass
         self._conn = _connect_raw(self._dsn)
+
+    def release(self) -> None:
+        """End the open read transaction before going off to the network.
+
+        psycopg does not autocommit, so the first SELECT opens a transaction
+        that stays open until something commits. Through Supabase's transaction
+        pooler that pins a backend for as long as `refresh` spends scraping, and
+        the pooler eventually drops it -- which surfaced as "server closed the
+        connection unexpectedly" on the COMMIT of the first write afterwards.
+        """
+        if self._conn.info.transaction_status != psycopg.pq.TransactionStatus.IDLE:
+            try:
+                self._conn.rollback()
+            except psycopg.Error:
+                pass
 
     def execute(self, sql: str, params=()):
         return self._conn.execute(_pg(sql), params)
@@ -283,10 +303,29 @@ def stored_menu_slots(conn: Database, college: str) -> set[tuple[date, str, str]
     }
 
 
+def _write(conn: Database, write) -> None:
+    """Run one write transaction, once more on a fresh link if the link dies.
+
+    Safe to repeat because every write here is an upsert or a delete-and-insert
+    inside a single transaction: a failed attempt is rolled back whole.
+    """
+    conn.ensure_live()
+    try:
+        write()
+        conn.commit()
+    except psycopg.OperationalError as exc:
+        if conn._dsn is None:
+            raise
+        print(f"  database link dropped ({exc.__class__.__name__}); retrying once",
+              file=sys.stderr)
+        conn.reconnect()
+        write()
+        conn.commit()
+
+
 def upsert_items(conn: Database, items: list[FoodItem]) -> None:
     if not items:
         return
-    conn.ensure_live()
 
     columns = ["college", "external_id", "name", "serving_size", "ingredients",
                "allergens", "allergens_raw", "diets", "has_allergen_data",
@@ -306,12 +345,11 @@ def upsert_items(conn: Database, items: list[FoodItem]) -> None:
             *[row[f] for f in NUTRIENT_FIELDS],
         ])
 
-    conn.executemany(
+    _write(conn, lambda: conn.executemany(
         f"INSERT INTO items ({', '.join(columns)}) VALUES ({placeholders}) "
         f"ON CONFLICT (college, external_id) DO UPDATE SET {updates}",
         rows,
-    )
-    conn.commit()
+    ))
 
 
 def merge_icon_allergens(conn: Database, college: str) -> int:
@@ -386,28 +424,29 @@ def replace_menu_entries(
     Scoped to slots, not whole dates: a run that skipped a slot because the
     database already held it must not delete what is there.
     """
-    conn.ensure_live()
-    if slots:
-        conn.executemany(
-            "DELETE FROM menu_entries WHERE college = ? AND service_date = ? "
-            "AND location_id = ? AND meal = ?",
-            [(college, day, location_id, meal) for day, location_id, meal in slots],
-        )
-    if entries:
-        conn.executemany(
-            "INSERT INTO menu_entries "
-            "(college, location_id, location_name, service_date, meal, station, "
-            " item_external_id, portion, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT (college, location_id, service_date, meal, station, "
-            "             item_external_id, portion) "
-            "DO UPDATE SET location_name = excluded.location_name, tags = excluded.tags",
-            [
-                (e.college, e.location_id, e.location_name, e.service_date,
-                 e.meal, e.station or "", e.item_external_id, e.portion or "", Jsonb(e.tags))
-                for e in entries
-            ],
-        )
-    conn.commit()
+    def write():
+        if slots:
+            conn.executemany(
+                "DELETE FROM menu_entries WHERE college = ? AND service_date = ? "
+                "AND location_id = ? AND meal = ?",
+                [(college, day, location_id, meal) for day, location_id, meal in slots],
+            )
+        if entries:
+            conn.executemany(
+                "INSERT INTO menu_entries "
+                "(college, location_id, location_name, service_date, meal, station, "
+                " item_external_id, portion, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT (college, location_id, service_date, meal, station, "
+                "             item_external_id, portion) "
+                "DO UPDATE SET location_name = excluded.location_name, tags = excluded.tags",
+                [
+                    (e.college, e.location_id, e.location_name, e.service_date,
+                     e.meal, e.station or "", e.item_external_id, e.portion or "", Jsonb(e.tags))
+                    for e in entries
+                ],
+            )
+
+    _write(conn, write)
 
 
 def orphan_entries(conn: Database, college: str) -> list[tuple[str, str, date]]:

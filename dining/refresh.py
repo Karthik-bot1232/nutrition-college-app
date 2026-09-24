@@ -28,6 +28,7 @@ def refresh(college: str, days: int, dsn: str | None = None,
     dates = [today + timedelta(days=offset) for offset in range(days)]
 
     stored = set() if force else db.stored_menu_slots(conn, college)
+    conn.release()   # nothing held open while the menus are scraped
 
     entries: list[MenuEntry] = []
     failures: list[str] = []
@@ -74,6 +75,7 @@ def refresh(college: str, days: int, dsn: str | None = None,
     retry = [(rid, lid, day) for rid, lid, day in db.orphan_entries(conn, college)
              if rid not in cached and rid not in wanted]
     todo.extend(retry)
+    conn.release()   # nor while the labels are
 
     print(f"\n{len(entries)} new menu rows, {len(wanted)} unique recipes "
           f"({len(cached & wanted.keys())} already labelled, {len(todo)} to fetch"
