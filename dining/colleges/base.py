@@ -20,6 +20,13 @@ class CollegeAdapter:
     locations: dict[str, str]
     meals: tuple[str, ...]
 
+    #: Usual serving window per meal, "HH:MM" 24h, keyed "weekday" / "weekend".
+    #: The UI uses it to open on the meal being served now and to say whether a
+    #: hall is open. It is the posted routine, not a feed: holidays and breaks
+    #: differ, so the UI labels these as usual hours. Empty means "unknown",
+    #: and the UI then simply does not show open/closed.
+    hours: dict[str, dict[str, tuple[str, str]]] = {}
+
     #: Seconds to wait between requests, so we stay a polite guest on their server.
     request_delay = 0.5
 

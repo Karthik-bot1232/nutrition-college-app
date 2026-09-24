@@ -58,6 +58,13 @@ class UMDAdapter(CollegeAdapter):
         "51": "251 North",
     }
     meals = ("Breakfast", "Lunch", "Dinner")
+    # Typical semester schedule; check dining.umd.edu before relying on it.
+    hours = {
+        "weekday": {"Breakfast": ("07:00", "10:30"), "Lunch": ("11:00", "16:00"),
+                    "Dinner": ("16:00", "21:00")},
+        "weekend": {"Breakfast": ("08:00", "10:00"), "Lunch": ("10:00", "16:00"),
+                    "Dinner": ("16:00", "20:00")},
+    }
 
     def menu_url(self, location_id: str, day: date, meal: str) -> str:
         return (

@@ -141,6 +141,7 @@ def api_meta(conn, college: str) -> dict:
         "college_name": adapter.name,
         "locations": [{"id": lid, "name": name} for lid, name in adapter.locations.items()],
         "meals": list(adapter.meals),
+        "hours": adapter.hours,
         "dates": dates,
         "today": date.today().isoformat(),
         "allergens": list(CANONICAL),
