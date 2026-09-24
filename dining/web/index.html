@@ -52,6 +52,8 @@
   <symbol id="ic-moon" viewBox="0 0 24 24">
     <path d="M20.5 14.2A8.6 8.6 0 0 1 9.8 3.5a8.6 8.6 0 1 0 10.7 10.7Z"/>
   </symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.8"/></symbol>
+  <symbol id="ic-filter" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></symbol>
   <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></symbol>
   <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4.8 12.6 9.6 17.4 19.2 6.9"/></symbol>
   <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></symbol>
@@ -63,9 +65,14 @@
   </symbol>
 </defs></svg>
 
-<header class="appbar">
-  <div class="appbar__brandrow">
-    <div class="wrap appbar__top">
+<div class="shell">
+
+<!-- Everything you come back to: who/where/what meal, and the filters. On a
+     desktop this is a rail pinned to the left edge; on a phone it is the stack
+     at the top, which is what a phone wants. -->
+<aside class="rail">
+  <div class="rail__top">
+    <div class="wrap rail__brandrow">
       <div class="brand">
         <span class="brand__mark" aria-hidden="true"></span>
         <div class="brand__text">
@@ -73,49 +80,64 @@
           <p class="brand__sub" id="dayLabel">&nbsp;</p>
         </div>
       </div>
-      <div class="appbar__actions">
+      <div class="rail__actions">
         <button class="iconbtn" id="themeToggle" aria-label="Switch theme">
           <svg class="gi gi--theme" aria-hidden="true"><use href="#ic-sun"/></svg>
         </button>
         <button class="iconbtn" id="statsToggle" aria-label="About this data">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.9"/></svg>
+          <svg class="gi" aria-hidden="true"><use href="#ic-info"/></svg>
         </button>
       </div>
     </div>
   </div>
+
+  <div class="toolbar">
+    <div class="wrap">
+      <div class="railgroup">
+        <h2 class="railgroup__label">Meal</h2>
+        <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal"></div>
+      </div>
+      <div class="railgroup">
+        <h2 class="railgroup__label">Dining hall</h2>
+        <div class="pills" id="hallPills" role="tablist" aria-label="Dining hall"></div>
+      </div>
+      <div class="railgroup">
+        <div class="searchrow">
+          <div class="search">
+            <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input id="search" type="search" placeholder="Search items…" autocomplete="off" spellcheck="false">
+            <button class="search__clear" id="searchClear" hidden aria-label="Clear search">
+              <svg class="gi" aria-hidden="true"><use href="#ic-close"/></svg>
+            </button>
+          </div>
+          <button class="filterbtn" id="filterToggle" aria-haspopup="dialog">
+            <svg class="gi" aria-hidden="true"><use href="#ic-filter"/></svg>
+            <span>Filters</span>
+            <span class="filterbtn__count" id="filterCount" hidden>0</span>
+          </button>
+        </div>
+        <div class="activefilters" id="activeFilters" hidden></div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- The food. -->
+<div class="work">
   <div class="weekbar">
     <div class="wrap">
       <div class="weeknav" id="weekNav"></div>
       <nav class="weekdays" id="dateStrip" aria-label="Day of the week"></nav>
     </div>
   </div>
-</header>
 
-<div class="toolbar">
-    <div class="wrap">
-      <div class="segmented" id="mealTabs" role="tablist" aria-label="Meal"></div>
-      <div class="pills" id="hallPills" role="tablist" aria-label="Dining hall"></div>
-      <div class="searchrow">
-        <div class="search">
-          <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <input id="search" type="search" placeholder="Search items…" autocomplete="off" spellcheck="false">
-          <button class="search__clear" id="searchClear" hidden aria-label="Clear search">&times;</button>
-        </div>
-        <button class="filterbtn" id="filterToggle" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
-          <span>Filters</span>
-          <span class="filterbtn__count" id="filterCount" hidden>0</span>
-        </button>
-      </div>
-      <div class="activefilters" id="activeFilters" hidden></div>
-    </div>
+  <section class="wrap hero" id="hero"></section>
+  <main class="wrap" id="content"></main>
+  <section class="wrap view" id="buildView" hidden></section>
+  <section class="wrap view" id="plateView" hidden></section>
 </div>
 
-<section class="wrap hero" id="hero"></section>
-
-<main class="wrap" id="content"></main>
-<section class="wrap view" id="buildView" hidden></section>
-<section class="wrap view" id="plateView" hidden></section>
+</div><!-- /.shell -->
 
 <nav class="tabbar" aria-label="Sections">
   <div class="wrap tabbar__inner">
