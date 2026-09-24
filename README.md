@@ -180,7 +180,7 @@ python3 -m dining.demo --open          # http://127.0.0.1:8000
 ```
 
 `dining.demo` serves the same `dining/web` files, but answers the API from the
-sample in `frontend/src/mockData.js` (577 items from real UMD menus) spread over
+sample in `dining/sample_menu.json` (577 items from real UMD menus) spread over
 two weeks. It needs only the standard library, with no `.env` and no psycopg.
 
 ### Hours

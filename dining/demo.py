@@ -4,7 +4,7 @@
     python3 -m dining.demo --port 8080 --open
 
 For working on the front end: it serves `dining/web` exactly as `dining.serve`
-does, but answers the API from `frontend/src/mockData.js` (sampled from real UMD
+does, but answers the API from `sample_menu.json` (sampled from real UMD
 menus) instead of Postgres. Every day of a two-week window gets a slice of that
 fixture, so date paging, search and the builder all have something to show.
 Stdlib only -- no psycopg, no .env.
@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
-FIXTURE = ROOT.parent / "frontend" / "src" / "mockData.js"
+FIXTURE = ROOT / "sample_menu.json"
 
 LOCATIONS = {"16": "South Campus Dining Hall", "19": "Yahentamitsi Dining Hall",
              "51": "251 North"}
@@ -48,9 +48,7 @@ CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/c
 
 
 def load_fixture() -> list[dict]:
-    text = FIXTURE.read_text()
-    body = text[text.index("export const MENU_ITEMS =") + len("export const MENU_ITEMS ="):]
-    return json.loads(body.strip().rstrip(";"))
+    return json.loads(FIXTURE.read_text())
 
 
 def to_item(raw: dict) -> dict:
