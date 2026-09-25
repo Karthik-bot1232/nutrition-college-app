@@ -958,7 +958,7 @@ function activeGoal() {
   };
 }
 
-const TABS = ['home', 'browse', 'build', 'plate'];
+const TABS = ['home', 'browse', 'scan', 'build', 'plate'];
 
 function setTab(tab, fromHash = false) {
   if (!TABS.includes(tab)) tab = 'home';
@@ -974,6 +974,7 @@ function setTab(tab, fromHash = false) {
   $('#content').hidden = tab !== 'browse';
   $('#buildView').hidden = tab !== 'build';
   $('#plateView').hidden = tab !== 'plate';
+  $('#scanView').hidden = tab !== 'scan';
   $('#hero').hidden = tab !== 'browse';
   // Search and filters act on the browse list; on the other tabs they would
   // look live and do nothing. Home keeps the search box as a way in.
@@ -988,6 +989,12 @@ function setTab(tab, fromHash = false) {
     if (!state.plans && !state.planning) runBuild();
   }
   if (tab === 'plate') renderPlateView();
+  if (tab === 'scan') {
+    // A card in front of you is today's food, whatever day Menu was left on.
+    const today = homeDate();
+    if (today !== state.date) selectDate(today);
+    renderScan();
+  }
   measureTop();
   window.scrollTo(0, 0);
 }
@@ -1524,6 +1531,7 @@ function selectMeal(meal) {
   state.collapsed.clear();
   renderMeals(); renderHalls(); renderHero(); render();
   rebuildIfShowing();
+  rematchScan();
 }
 
 function selectLocation(loc) {
@@ -1531,6 +1539,345 @@ function selectLocation(loc) {
   state.collapsed.clear();
   renderHalls(); render();
   rebuildIfShowing();
+  rematchScan();
+}
+
+/* -------------------------------------------------------------- scan view
+
+   Photograph the name card in front of a dish and land on its label.
+
+   Reading happens on the phone, with Tesseract.js fetched from the CDN the
+   first time someone scans: no key, no server work, and nothing uploaded. OCR
+   off a card under dining-hall lights is noisy, so the match is fuzzy and it
+   is deliberately narrow -- only against today's menu, preferring the meal and
+   hall already chosen. A few hundred names to choose from is what makes a
+   half-read "GRILED BLACKEND CHIKEN" land on the right item.
+
+   Each card is scored line-window by line-window: the name is usually one or
+   two lines, and the rest of the card (allergen icons, "Vegetarian", a
+   calorie count) is noise that should not dilute it. F1 over weighted tokens,
+   so "Rice" does not win just because the card says "Cilantro Lime Rice". */
+
+const TESSERACT_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
+const SCAN_STOP = new Set(['w', 'with', 'and', 'the', 'of', 'an']);
+/** Confident enough to skip the list and open the label directly. */
+const SCAN_SURE = 0.72;
+const SCAN_MARGIN = 0.08;
+
+const scan = { status: 'idle', photo: null, text: '', progress: 0, matches: null,
+               error: '', token: 0 };
+let ocrReady = null;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => { s.remove(); reject(new Error('script failed')); };
+    document.head.append(s);
+  });
+}
+
+/** One worker for the session: starting one costs more than a recognition. */
+function ocrWorker() {
+  ocrReady ||= (async () => {
+    if (!window.Tesseract) await loadScript(TESSERACT_SRC);
+    return Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        if (m.status !== 'recognizing text') return;
+        scan.progress = m.progress;
+        paintScanProgress();
+      },
+    });
+  })().catch(err => { ocrReady = null; throw err; });
+  return ocrReady;
+}
+
+/** Downscale, grey, and stretch the contrast. Cards are dark text on a light
+    card shot under yellow light, and a full-size phone photo is 12MP of time
+    spent reading the tablecloth. */
+async function prepareScanImage(file) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+  g.drawImage(bmp, 0, 0, w, h);
+  bmp.close?.();
+
+  const img = g.getImageData(0, 0, w, h), d = img.data, n = w * h;
+  const grey = new Uint8ClampedArray(n), hist = new Uint32Array(256);
+  for (let i = 0, p = 0; p < n; i += 4, p++) {
+    const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0;
+    grey[p] = v; hist[v]++;
+  }
+  let lo = 0, hi = 255;
+  for (let v = 0, acc = 0; v < 256; v++) if ((acc += hist[v]) > n * 0.02) { lo = v; break; }
+  for (let v = 255, acc = 0; v >= 0; v--) if ((acc += hist[v]) > n * 0.02) { hi = v; break; }
+  const span = Math.max(1, hi - lo);
+  for (let i = 0, p = 0; p < n; i += 4, p++) {
+    d[i] = d[i + 1] = d[i + 2] = (grey[p] - lo) * 255 / span;
+  }
+  g.putImageData(img, 0, 0);
+  return canvas;
+}
+
+/** OCR reads l as 1 and o as 0 in the middle of words; undo that wherever a
+    word has letters in it, and leave real numbers ("12 inch") alone. */
+const OCR_DIGIT = { 0: 'o', 1: 'l', 5: 's', 8: 'b' };
+
+function scanWords(s) {
+  return String(s).normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[|!]/g, 'l').replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+    .map(t => /[a-z]/.test(t) && /\d/.test(t) ? t.replace(/[0158]/g, d => OCR_DIGIT[d]) : t)
+    .filter(t => t.length > 1 && !SCAN_STOP.has(t));
+}
+
+/** Edits between two words, a swapped pair of letters counting as one. */
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] !== b[j - 1]));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return d[a.length][b.length];
+}
+
+/** How alike two words are, allowing the letter or two OCR gets wrong. Short
+    words must match exactly: "egg" one edit from "eel" is not a near miss. */
+function wordSim(a, b) {
+  if (a === b) return 1;
+  if (a.length < 4 || b.length < 4) return 0;
+  const s = 1 - editDistance(a, b) / Math.max(a.length, b.length);
+  return s >= 0.7 ? s : 0;
+}
+
+/** F1 between a menu name and a window of card text, words weighted by length. */
+function nameScore(name, text) {
+  const used = new Set();
+  let hitName = 0, hitText = 0;
+  for (const w of name) {
+    let best = 0, at = -1;
+    text.forEach((t, i) => {
+      if (used.has(i)) return;
+      const s = wordSim(w, t);
+      if (s > best) { best = s; at = i; }
+    });
+    if (at < 0) continue;
+    used.add(at);
+    hitName += best * w.length;
+    hitText += best * text[at].length;
+  }
+  const recall = hitName / name.reduce((n, w) => n + w.length, 0);
+  const precision = hitText / text.reduce((n, w) => n + w.length, 0);
+  return recall + precision ? 2 * recall * precision / (recall + precision) : 0;
+}
+
+/** Every name served today once, remembering the best place to find it. */
+async function scanCandidates() {
+  const day = await loadDay(state.date);
+  const byName = new Map();
+  Object.entries(day).forEach(([meal, menu]) => dayItems(menu).forEach(i => {
+    const words = scanWords(i.name);
+    if (!words.length) return;
+    const now = meal === state.meal;
+    const here = state.location === 'all' || i._at.some(a => a.loc === state.location);
+    const rank = (now ? 2 : 0) + (now && here ? 1 : 0);
+    const key = words.join(' ');
+    const have = byName.get(key);
+    if (!have || rank > have.rank) byName.set(key, { item: i, meal, rank, words });
+  }));
+  return [...byName.values()];
+}
+
+async function matchScan(text) {
+  const lines = String(text).split(/\n+/).map(scanWords).filter(l => l.length);
+  const windows = [];
+  for (let i = 0; i < lines.length; i++) {
+    for (let k = 1; k <= 3 && i + k <= lines.length; k++) windows.push(lines.slice(i, i + k).flat());
+  }
+  if (!windows.length) return [];
+  const scored = (await scanCandidates()).map(c => {
+    const fit = Math.max(...windows.map(w => nameScore(c.words, w)));
+    return { ...c, fit, score: fit + 0.04 * c.rank };
+  });
+  return scored.filter(c => c.fit >= 0.3).sort((a, b) => b.score - a.score).slice(0, 5);
+}
+
+/** The card's text as one editable line: the lines that looked like a name. */
+function readableScanText(raw) {
+  return String(raw).split(/\n+/)
+    .map(l => l.replace(/[^\p{L}\p{N}&'’ -]+/gu, ' ').replace(/\s+/g, ' ').trim())
+    .filter(l => (l.match(/\p{L}/gu) || []).length >= 3)
+    .join('\n');
+}
+
+/** Open the label without asking only when nothing else is a real contender.
+    A close match whose name contains the winner's counts as one: a misread
+    first word turns "Coconut Sticky Rice" into a perfect "Sticky Rice". */
+function scanIsSure(matches) {
+  const [top, next] = matches;
+  if (!top || top.fit < SCAN_SURE) return false;
+  if (next && top.score - next.score < SCAN_MARGIN) return false;
+  return !matches.slice(1).some(c => c.fit >= 0.55 && c.words.length > top.words.length
+                                   && top.words.every(w => c.words.includes(w)));
+}
+
+async function runScanMatch(text, { autoOpen }) {
+  const token = scan.token;
+  scan.status = 'matching';
+  renderScan();
+  let matches;
+  try {
+    matches = await matchScan(text);
+  } catch {
+    if (token !== scan.token) return;
+    scan.status = 'error';
+    scan.error = 'Could not load today’s menu to match against. Check your connection.';
+    renderScan();
+    return;
+  }
+  if (token !== scan.token) return;
+  scan.matches = matches;
+  scan.status = 'done';
+  renderScan();
+  if (autoOpen && scanIsSure(matches)) openDetail(matches[0].item.recipe_id);
+}
+
+async function handleScanFile(file) {
+  if (!file) return;
+  const token = ++scan.token;
+  if (scan.photo) URL.revokeObjectURL(scan.photo);
+  Object.assign(scan, { photo: URL.createObjectURL(file), text: '', matches: null,
+                        progress: 0, error: '', status: 'loading' });
+  renderScan();
+  let raw;
+  try {
+    const [worker, image] = await Promise.all([
+      ocrWorker().then(w => { if (token === scan.token) { scan.status = 'reading'; renderScan(); } return w; }),
+      prepareScanImage(file),
+    ]);
+    raw = (await worker.recognize(image)).data.text;
+  } catch (err) {
+    if (token !== scan.token) return;
+    scan.status = 'error';
+    scan.error = window.Tesseract
+      ? 'Could not read that photo. Try again closer, with the card filling the frame.'
+      : 'Could not load the text reader. It downloads once (a few MB) and needs a connection the first time.';
+    renderScan();
+    return;
+  }
+  if (token !== scan.token) return;
+  scan.text = readableScanText(raw);
+  if (!scan.text) {
+    scan.status = 'done';
+    scan.matches = [];
+    renderScan();
+    return;
+  }
+  runScanMatch(scan.text, { autoOpen: true });
+}
+
+function paintScanProgress() {
+  const bar = $('#scanProgress');
+  if (!bar) return;
+  const pct = Math.round(scan.progress * 100);
+  bar.style.setProperty('--p', `${pct}%`);
+  $('#scanPct').textContent = `${pct}%`;
+}
+
+function scanContext() {
+  const hall = state.location === 'all' ? 'any hall' : shortHall(hallName(state.location));
+  return `${state.meal.toLowerCase()} at ${hall}, ${isToday(state.date) ? 'today' : shortDay(state.date)}`;
+}
+
+function renderScan() {
+  const busy = ['loading', 'reading', 'matching'].includes(scan.status);
+  const pickers = `
+    <div class="scan__actions">
+      <label class="btn btn--primary btn--block">
+        <input type="file" accept="image/*" capture="environment" data-scanfile hidden>
+        <svg class="gi" aria-hidden="true"><use href="#ic-camera"/></svg>
+        <span>${scan.photo ? 'Scan another card' : 'Take a photo'}</span>
+      </label>
+      <label class="btn btn--ghost btn--block">
+        <input type="file" accept="image/*" data-scanfile hidden>
+        <span>Choose from photos</span>
+      </label>
+    </div>`;
+
+  const intro = `<div class="panel panel--hero scan__intro">
+      <h2>Scan a name card</h2>
+      <p class="muted">Photograph the card in front of a dish. We read the name and find it on
+        ${esc(scanContext())}.</p>
+      ${pickers}
+      <p class="hint">Fill the frame with the card and hold steady. Tilt the phone a little if
+        the light glares off it.</p>
+    </div>`;
+
+  const photo = scan.photo ? `<figure class="scan__photo">
+      <img src="${scan.photo}" alt="Your photo of the name card">
+      ${busy ? `<figcaption class="scan__status" role="status">
+        <span>${scan.status === 'loading' ? 'Getting the reader ready…'
+               : scan.status === 'reading' ? 'Reading the card…' : 'Finding it on the menu…'}</span>
+        ${scan.status === 'reading' ? `<span id="scanPct">${Math.round(scan.progress * 100)}%</span>` : ''}
+        <span class="scan__bar" id="scanProgress" style="--p:${Math.round(scan.progress * 100)}%"
+          ${scan.status === 'reading' ? '' : 'data-indeterminate'}></span>
+      </figcaption>` : ''}
+    </figure>` : '';
+
+  let result = '';
+  if (scan.status === 'error') {
+    result = `<div class="notice"><svg class="gi" aria-hidden="true"><use href="#ic-warn"/></svg><span>${esc(scan.error)}</span></div>`;
+  } else if (scan.status === 'done' || scan.status === 'matching') {
+    const read = `<form class="scan__read" id="scanForm">
+        <label class="field"><span>We read</span>
+          <textarea id="scanText" rows="${Math.min(4, Math.max(1, scan.text.split('\n').length))}"
+            placeholder="Nothing readable. Type the name on the card"
+            autocomplete="off" spellcheck="false">${esc(scan.text)}</textarea></label>
+        <button class="btn btn--ghost btn--sm" type="submit">Find this</button>
+      </form>`;
+    const m = scan.matches;
+    let list = '';
+    if (m && m.length) {
+      const [top, ...rest] = m;
+      const where = c => {
+        const at = c.item._at.find(a => state.location === 'all' || a.loc === state.location) || c.item._at[0];
+        return `${c.meal === state.meal ? '' : `${c.meal} · `}${at.hall} · ${at.station}`;
+      };
+      list = `<section class="homesec">
+          <div class="homesec__head"><h2>${top.fit >= SCAN_SURE ? 'Best match' : 'Closest match'}</h2></div>
+          <ul class="cards">${card(top.item, where(top))}</ul>
+        </section>
+        ${rest.length ? `<section class="homesec">
+          <div class="homesec__head"><h2>Or did you mean</h2></div>
+          <ul class="cards">${rest.map(c => card(c.item, where(c))).join('')}</ul>
+        </section>` : ''}`;
+    } else if (m) {
+      list = emptyState('Not on today’s menu', `Nothing served ${esc(scanContext().replace(/^\w+ at /, 'at '))}
+        matches that. Fix the text above, or search every stored day.`,
+        scan.text ? `<button class="btn btn--ghost" data-searchfor="${esc(scan.text.split('\n')[0])}">Search for it</button>` : '',
+        'search');
+    }
+    result = read + list;
+  }
+
+  $('#scanView').innerHTML = (scan.photo
+    ? `<div class="scan__top">${photo}<div class="scan__side">${pickers}</div></div>`
+    : intro) + result;
+}
+
+/** Hall or meal changed under a finished scan: same text, new menu. */
+function rematchScan() {
+  if (state.tab !== 'scan') return;
+  if (scan.text && scan.status === 'done') { scan.token++; runScanMatch(scan.text, { autoOpen: false }); }
+  else renderScan();
 }
 
 /* ------------------------------------------------------------- sheets */
@@ -1756,7 +2103,7 @@ function renderPlate() {
   renderHero();
   if (state.tab === 'plate') renderPlateView();
 
-  $$('#content [data-add]').forEach(btn => {
+  $$('#content [data-add], #scanView [data-add]').forEach(btn => {
     const on = plateFor().some(p => p.recipe_id === btn.dataset.add);
     btn.setAttribute('aria-pressed', String(on));
     btn.querySelector('use').setAttribute('href', on ? '#ic-check' : '#ic-plus');
@@ -2186,6 +2533,26 @@ function bind() {
     }
     const row = e.target.closest('[data-detail]');
     if (row) openDetail(row.dataset.detail);
+  });
+
+  $('#scanView').addEventListener('change', e => {
+    const input = e.target.closest('[data-scanfile]');
+    if (!input) return;
+    handleScanFile(input.files[0]);
+    input.value = '';   // the same photo picked twice should still fire
+  });
+  $('#scanView').addEventListener('submit', e => {
+    e.preventDefault();
+    scan.text = $('#scanText').value.trim();
+    if (!scan.text) return;
+    scan.token++;
+    runScanMatch(scan.text, { autoOpen: true });
+  });
+  $('#scanView').addEventListener('click', e => {
+    const add = e.target.closest('[data-add]');
+    if (add) { addOrRemove(add.dataset.add); return; }
+    const open = e.target.closest('[data-id]');
+    if (open) openDetail(open.dataset.id);
   });
 
   $('#plateView').addEventListener('click', e => {

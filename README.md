@@ -142,7 +142,7 @@ nutrient its own column. Use it for spreadsheets and quick analysis.
 ## The web UI
 
 `dining.serve` puts the stored week behind a small read-only JSON API and a
-single-page front end, built as a phone app: four tabs, sheets that slide up,
+single-page front end, built as a phone app: five tabs, sheets that slide up,
 and a true-black theme.
 
 - **Today** is the home screen. It shows which halls are open right now and
@@ -161,6 +161,12 @@ and a true-black theme.
 - **Item detail** shows the full label with % Daily Value, where the calories
   come from, both allergen sources side by side, when and where it is served
   next, and a Save (favorite) button.
+- **Scan** reads the name card in front of a dish. Take a photo (or pick one)
+  and the text is read on the phone with Tesseract.js, fetched from jsDelivr
+  the first time and never uploaded anywhere. It is fuzzy-matched against
+  today's menu, preferring the chosen meal and hall, and a confident match
+  opens straight onto that item's label and Add button. Otherwise it lists the
+  closest few, and the text it read is editable for a second try.
 - **Build** picks plates from what is actually being served to hit a
   per-meal calorie and protein target.
 - **Tracker** logs each meal with a servings stepper (half-serving steps),

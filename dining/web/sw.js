@@ -7,7 +7,7 @@
    cost is that online loads still make the request; the benefit is that what
    you see is never a lie about what is deployed. */
 
-const VERSION = 'dining-v5';
+const VERSION = 'dining-v6';
 const SHELL = [
   '/', '/index.html', '/styles.css', '/app.js',
   '/manifest.webmanifest', '/icon.svg', '/icon-maskable.svg',

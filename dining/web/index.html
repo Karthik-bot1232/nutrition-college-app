@@ -28,6 +28,7 @@
     <path d="m12 3 1.9 4.4L18 9.3l-4.1 1.9L12 15.6l-1.9-4.4L6 9.3l4.1-1.9L12 3Z"/>
     <path d="m18.5 15 .9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9.9-2Z"/></symbol>
   <symbol id="ic-plate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/></symbol>
+  <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.4-2h5.6l1.4 2h2.3A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-9Z"/><circle cx="12" cy="13" r="3.4"/></symbol>
   <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></symbol>
   <symbol id="ic-filter" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M7 12h10"/><path d="M10 17h4"/></symbol>
   <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></symbol>
@@ -128,6 +129,7 @@
     <section class="wrap" id="homeView" aria-label="Today"></section>
     <section class="wrap" id="hero" aria-live="polite"></section>
     <main class="wrap" id="content"></main>
+    <section class="wrap" id="scanView" hidden aria-label="Scan a name card"></section>
     <section class="wrap" id="buildView" hidden></section>
     <section class="wrap" id="plateView" hidden></section>
   </div>
@@ -151,6 +153,10 @@
     <button class="tab" data-tab="browse">
       <span class="tab__iconwrap"><svg class="gi" aria-hidden="true"><use href="#ic-browse"/></svg></span>
       <span class="tab__label">Menu</span>
+    </button>
+    <button class="tab" data-tab="scan">
+      <span class="tab__iconwrap"><svg class="gi" aria-hidden="true"><use href="#ic-camera"/></svg></span>
+      <span class="tab__label">Scan</span>
     </button>
     <button class="tab" data-tab="build">
       <span class="tab__iconwrap"><svg class="gi" aria-hidden="true"><use href="#ic-build"/></svg></span>
