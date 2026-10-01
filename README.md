@@ -109,6 +109,22 @@ preference: launchd runs with a bare `PATH`, `python3` there resolves to
 `/usr/bin/python3`, and that interpreter has none of this project's
 dependencies. Check `logs/launchd.err.log` if a scheduled run goes missing.
 
+## Publishing
+
+**Web app (Render).** `render.yaml` describes the service. In the Render
+dashboard: **New -> Blueprint**, pick this repo, and paste `DATABASE_URL` when
+asked. Every push to `main` redeploys. `dining.serve` listens on `$HOST:$PORT`
+when those are set, which is how Render reaches it; locally it stays on
+`127.0.0.1:8000`. The free plan sleeps after ~15 idle minutes, so the first
+load after that takes about 30 seconds.
+
+**Daily refresh (GitHub Actions).** `.github/workflows/daily-refresh.yml` runs
+`daily_refresh.sh` at 09:00 UTC every day. Add `DATABASE_URL` under
+**Settings -> Secrets and variables -> Actions**. Each run's exports and log
+are attached to it as an artifact for 14 days. Once it has run successfully,
+unload the launchd job so the two don't both refresh:
+`launchctl unload ~/Library/LaunchAgents/com.nutrition.dailyrefresh.plist`.
+
 ## Export format
 
 **JSON** is normalized. A recipe served at three halls across seven days is one

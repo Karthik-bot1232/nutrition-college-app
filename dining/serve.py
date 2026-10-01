@@ -9,6 +9,7 @@ Stdlib only, so it runs wherever the scraper runs.
 
 import argparse
 import json
+import os
 import re
 import webbrowser
 from datetime import date
@@ -390,8 +391,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--college", default="umd")
     parser.add_argument("--dsn", help="Postgres connection string (default: $DATABASE_URL)")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
+    # Hosting platforms (Render, Fly, ...) say where to listen through $HOST and
+    # $PORT; locally neither is set and this stays on loopback.
+    parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)))
     parser.add_argument("--open", action="store_true", help="open a browser window")
     args = parser.parse_args()
 

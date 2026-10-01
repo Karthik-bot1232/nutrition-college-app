@@ -1,0 +1,53 @@
+# The cloud replacement for com.nutrition.dailyrefresh.plist: tops up every
+# registered college once a day, whether or not a Mac is awake.
+#
+# Needs one repository secret, DATABASE_URL (Settings -> Secrets and variables
+# -> Actions). Run it by hand from the Actions tab with "Run workflow".
+name: Daily refresh
+
+on:
+  schedule:
+    - cron: "0 9 * * *"     # 05:00 US Eastern (EDT); 04:00 in winter
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Window to examine, in days"
+        default: "14"
+      force:
+        description: "Re-scrape even what is already stored"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      # daily_refresh.sh runs ./.venv/bin/python, because launchd needs it to.
+      # Point that path at the interpreter set up above.
+      - run: mkdir -p .venv/bin && ln -s "$(which python)" .venv/bin/python
+      - name: Refresh
+        run: DAYS="${{ inputs.days || '14' }}" FORCE="${{ inputs.force && '1' || '' }}" ./daily_refresh.sh
+      - name: Show the log
+        if: always()
+        run: cat logs/refresh-*.log 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: refresh-${{ github.run_id }}
+          path: |
+            exports/
+            logs/
+          retention-days: 14
