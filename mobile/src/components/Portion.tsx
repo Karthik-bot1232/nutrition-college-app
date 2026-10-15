@@ -52,7 +52,7 @@ export function PortionPicker({ serving, per, value, onChange }: {
         <View style={st.box}>
           <TextInput value={text} onChangeText={type} keyboardType="decimal-pad" selectTextOnFocus
             style={[st.input, !valid && text !== '' && { color: C.danger }]} accessibilityLabel={`Amount in ${UNIT_LABEL[unit].toLowerCase()}`} />
-          <Text style={st.unit}>{SHORT[unit]}</Text>
+          <Text style={st.unit}>{unit === 'serving' && valid && amount <= 1 ? 'serving' : SHORT[unit]}</Text>
         </View>
         <Pressable onPress={() => step(1)} style={st.step} accessibilityRole="button" accessibilityLabel="More">
           <Icon name="add" size={20} color={C.text} />
