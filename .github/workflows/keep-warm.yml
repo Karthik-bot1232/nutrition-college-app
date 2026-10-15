@@ -1,0 +1,25 @@
+# Render's free plan puts the server to sleep after 15 idle minutes, and the
+# first request after that waits ~30-60s while it boots. That is the first
+# thing an App Store reviewer would see, so this keeps it awake.
+#
+# One always-on free instance is ~744 hours a month, inside Render's 750 free
+# hours. Delete this file once the service is on a paid plan.
+#
+# Set the repository variable APP_URL (Settings -> Secrets and variables ->
+# Actions -> Variables) if the Render URL is not the default below.
+name: Keep server warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping
+        run: |
+          url="${{ vars.APP_URL || 'https://campus-cals.onrender.com' }}"
+          curl -fsS --max-time 90 -o /dev/null -w "%{http_code} in %{time_total}s\n" "$url/" || true

@@ -2875,7 +2875,7 @@ async function init() {
   }
   document.body.dataset.booting = '0';
   state.meta = meta;
-  document.title = `${state.meta.college_name} Dining`;
+  document.title = `Campus Cals · ${state.meta.college_name}`;
 
   const { locations } = state.meta;
   state.date = homeDate();

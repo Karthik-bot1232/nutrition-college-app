@@ -1,4 +1,10 @@
-# College Nutrition Scraper
+# Campus Cals
+
+Dining hall menus and full nutrition labels, as a web app and an iOS/Android
+app (`mobile/`, see [its README](mobile/README.md)). Underneath is the
+scraper below.
+
+## College Nutrition Scraper
 
 Pulls dining-hall menus and full nutrition labels from a college's nutrition
 site into a **Supabase (Postgres)** database, and exports them in a stable
@@ -118,6 +124,11 @@ when those are set, which is how Render reaches it; locally it stays on
 `127.0.0.1:8000`. The free plan sleeps after ~15 idle minutes, so the first
 load after that takes about 30 seconds.
 
+**Keeping it awake.** `.github/workflows/keep-warm.yml` requests the site every
+10 minutes so the free plan never sleeps (one instance fits in Render's 750 free
+hours a month). Set the repo variable `APP_URL` if the Render URL differs from
+`https://campus-cals.onrender.com`; delete the workflow on a paid plan.
+
 **Daily refresh (GitHub Actions).** `.github/workflows/daily-refresh.yml` runs
 `daily_refresh.sh` at 09:00 UTC every day. Add `DATABASE_URL` under
 **Settings -> Secrets and variables -> Actions**. Each run's exports and log
@@ -192,8 +203,12 @@ and a true-black theme.
 - **About this data** (the ⓘ button) is `query stats` in the UI: coverage, what
   the source never published, and how many labels fail each check.
 
-Endpoints are `/api/meta`, `/api/menu`, `/api/search`, `/api/item` and
-`/api/stats`; every one is a GET returning JSON, so the front end is replaceable.
+Endpoints are `/api/colleges`, `/api/meta`, `/api/menu`, `/api/search`,
+`/api/item` and `/api/stats`; every one is a GET returning JSON, so the front
+end is replaceable. Each takes `?college=<slug>` (default: `--college`), so one
+server answers for every onboarded school. The server also hosts the app's
+`/privacy.html` and `/support.html`, which App Store Connect links to. `/api/colleges` lists the ones with
+stored menus, which is what the mobile app's campus picker shows.
 
 ### Working on the UI without a database
 

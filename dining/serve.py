@@ -22,7 +22,7 @@ from psycopg.types.json import Jsonb
 
 from . import db
 from .allergens import CANONICAL, normalize
-from .colleges import get_adapter
+from .colleges import ADAPTERS, get_adapter
 from .export import _nutrition_suspect
 from .models import NUTRIENT_FIELDS
 
@@ -126,6 +126,22 @@ def _placement(row) -> dict:
         "portion": row["portion"],
         "menu_tags": row["tags"] or [],
     }
+
+
+def api_colleges(conn) -> dict:
+    """Every onboarded college, for the app's campus picker.
+
+    Only colleges with stored menus are listed: a registered adapter whose first
+    refresh has not run yet would open onto an empty app.
+    """
+    stored = {r["college"]: r["days"] for r in conn.execute(
+        "SELECT college, COUNT(DISTINCT service_date) AS days FROM menu_entries GROUP BY 1")}
+    return {"colleges": [
+        {"slug": slug, "name": adapter.name,
+         "locations": len(adapter.locations), "days": stored[slug]}
+        for slug, adapter in sorted(ADAPTERS.items(), key=lambda kv: kv[1].name)
+        if stored.get(slug)
+    ]}
 
 
 def api_meta(conn, college: str) -> dict:
@@ -340,16 +356,24 @@ class Handler(BaseHTTPRequestHandler):
             # runs a thread per request, so holding a connection per thread
             # would open a Postgres connection per browser request and run
             # Supabase out of them within a few reloads.
+            q = parse_qs(parsed.query)
+            # One server answers for every college: the app sends the campus
+            # it was set to, and --college is only the default for callers
+            # that do not say (the web front end).
+            college = (q.get("college") or [self.college])[0]
+            if college not in ADAPTERS:
+                return self._json({"error": f"Unknown college {college!r}"}, status=404)
             with self.server.pool.connection() as raw:
                 conn = db.Database(raw)
+                if parsed.path == "/api/colleges":
+                    return self._json(api_colleges(conn))
                 if parsed.path == "/api/meta":
-                    return self._json(api_meta(conn, self.college))
+                    return self._json(api_meta(conn, college))
                 if parsed.path == "/api/stats":
-                    return self._json(api_stats(conn, self.college))
+                    return self._json(api_stats(conn, college))
                 handler = ROUTES.get(parsed.path)
                 if handler:
-                    return self._json(
-                        handler(conn, self.college, parse_qs(parsed.query)))
+                    return self._json(handler(conn, college, q))
             self.send_error(404)
         except Exception as exc:  # a broken query should not kill the server
             self._json({"error": f"{type(exc).__name__}: {exc}"}, status=500)
@@ -364,6 +388,9 @@ class Handler(BaseHTTPRequestHandler):
         # with the network off -- so the app cannot tell a live menu from a
         # remembered one, and a stale menu is worse than an honest gap.
         self.send_header("Cache-Control", "no-store")
+        # Read-only public menu data, so any origin may read it (the Expo app's
+        # web build and local tooling run on other origins).
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
 

@@ -217,7 +217,12 @@ def api_stats(store: Store, q) -> dict:
                          for (h, m), n in sorted(per.items())]}
 
 
-ROUTES = {"/api/meta": api_meta, "/api/menu": api_menu, "/api/search": api_search,
+def api_colleges(store: Store, q) -> dict:
+    return {"colleges": [{"slug": "umd", "name": "University of Maryland",
+                          "locations": 3, "days": len(store.dates)}]}
+
+
+ROUTES = {"/api/colleges": api_colleges, "/api/meta": api_meta, "/api/menu": api_menu, "/api/search": api_search,
           "/api/item": api_item, "/api/stats": api_stats}
 
 

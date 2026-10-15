@@ -2,7 +2,7 @@
 # DATABASE_URL is asked for once at creation and never committed.
 services:
   - type: web
-    name: dining
+    name: campus-cals
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt

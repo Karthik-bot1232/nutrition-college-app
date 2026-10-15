@@ -1,7 +1,7 @@
 {
-  "name": "UMD Dining",
-  "short_name": "Dining",
-  "description": "Dining hall menus and nutrition for the University of Maryland.",
+  "name": "Campus Cals",
+  "short_name": "Campus Cals",
+  "description": "Dining hall menus and full nutrition labels for your campus.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
