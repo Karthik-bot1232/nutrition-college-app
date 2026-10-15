@@ -1,26 +1,30 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MacroRow } from '../../components/items';
+import { PortionPicker } from '../../components/Portion';
 import { SheetHead } from '../../components/Sheet';
 import { Btn, Empty, Hint, LinkBtn, Loading, Notice, Pill } from '../../components/ui';
 import { apiFor } from '../../lib/api';
 import {
-  DAILY_VALUE, LABEL_BOLD, LABEL_DEPTH, labelValue, MACROS, NUTRIENTS, shortDay, shortHall, titleCase, todayIso,
+  DAILY_VALUE, fmtPortion, LABEL_BOLD, LABEL_DEPTH, labelValue, MACROS, NUTRIENTS, rowPortion, shortDay, shortHall, titleCase, todayIso,
 } from '../../lib/logic';
 import { useStore } from '../../lib/store';
 import { C, MACRO_COLOR, R, T } from '../../lib/theme';
-import type { DetailItem } from '../../lib/types';
+import type { DetailItem, Portion } from '../../lib/types';
 
 export default function ItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { college, meal, profile, onPlate, togglePlate, isFav, toggleFav } = useStore();
+  const { college, date, meal, profile, platesFor, addPortion, removeFromPlate, isFav, toggleFav } = useStore();
   const api = useMemo(() => apiFor(college!), [college]);
   const insets = useSafeAreaInsets();
   const [item, setItem] = useState<DetailItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const row = (platesFor(date)[meal] || []).find(r => r.recipe_id === id);
+  // Opened on something already logged, start from what was logged.
+  const [portion, setPortion] = useState<Portion | null>(row ? rowPortion(row) : { unit: 'serving', amount: 1 });
 
   useEffect(() => {
     let live = true;
@@ -37,7 +41,7 @@ export default function ItemDetail() {
 
   const n = item.nutrients;
   const cal = item.calories == null ? '–' : Math.round(item.calories);
-  const on = onPlate(item.recipe_id, meal);
+  const on = !!row;
   const fav = isFav(item.recipe_id);
 
   const icons = [...new Set(item.served_at.flatMap(s => s.menu_tags || [])
@@ -73,6 +77,10 @@ export default function ItemDetail() {
             </View>
           )}
         </View>
+
+        <Text style={st.h3}>How much</Text>
+        <PortionPicker serving={item.serving_size} value={portion || { unit: 'serving', amount: 1 }} onChange={setPortion}
+          per={{ calories: item.calories || 0, protein: n.protein_g || 0, carbs: n.total_carbs_g || 0, fat: n.total_fat_g || 0 }} />
 
         <Text style={st.h3}>Allergens & diet</Text>
         <View style={st.pills}>
@@ -129,8 +137,10 @@ export default function ItemDetail() {
       </ScrollView>
       <View style={[st.foot, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Btn kind="ghost" icon={fav ? 'heart' : 'heart-outline'} label={fav ? 'Saved' : 'Save'} onPress={() => toggleFav(item)} />
-        <Btn style={{ flex: 1 }} kind={on ? 'ghost' : 'primary'} icon={on ? 'close' : 'add'}
-          label={on ? `Remove from ${meal.toLowerCase()}` : `Add to ${meal.toLowerCase()}`} onPress={() => togglePlate(item, meal)} />
+        {on && <Btn kind="ghost" icon="trash-outline" label="Remove" onPress={() => { removeFromPlate(date, meal, item.recipe_id); router.back(); }} />}
+        <Btn style={{ flex: 1 }} icon={on ? 'checkmark' : 'add'} disabled={!portion}
+          label={on ? 'Update' : `Add ${portion ? fmtPortion(portion) : ''} to ${meal.toLowerCase()}`}
+          onPress={() => { if (portion) { addPortion(item, portion, meal); router.back(); } }} />
       </View>
     </View>
   );

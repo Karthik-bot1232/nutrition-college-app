@@ -104,12 +104,24 @@ export interface Stats {
   per_meal: { location_name: string; meal: string; n: number }[];
 }
 
+export type Unit = 'serving' | 'oz' | 'g';
+
+/** An amount as the person entered it. */
+export interface Portion {
+  unit: Unit;
+  amount: number;
+}
+
 /** One logged item. Stored, so the field names match the web app's. */
 export interface PlateRow {
   recipe_id: string;
   name: string;
   serving: string | null;
+  /** Servings eaten: what every total multiplies by, whatever unit was typed. */
   qty: number;
+  /** How the amount was entered. Absent on rows logged before weights, which are servings. */
+  unit?: Unit;
+  amount?: number;
   calories: number;
   protein: number;
   carbs: number;

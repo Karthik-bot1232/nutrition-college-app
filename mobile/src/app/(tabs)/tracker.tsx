@@ -7,7 +7,7 @@ import { DayCard, WaterRow } from '../../components/Day';
 import { TopBar } from '../../components/TopBar';
 import { Btn, GoalBar, Hint, Icon, LinkBtn, Notice, Panel } from '../../components/ui';
 import {
-  addDays, dayRows, fmtQty, longDay, mondayOf, parseDay, plural, served, shortDay, totalsOf,
+  addDays, dayRows, fmtPortion, fmtQty, longDay, mondayOf, parseDay, plural, rowPortion, served, shortDay, totalsOf, UNIT_STEP,
 } from '../../lib/logic';
 import { useMeta } from '../../lib/store';
 import { C, MACRO_COLOR, R, T } from '../../lib/theme';
@@ -79,18 +79,25 @@ function MealSection({ meal, open, onToggle, onBrowse }: { meal: string; open: b
         <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 12 }}>
           {rows.map(i => {
             const q = i.qty || 1;
+            const p = rowPortion(i);
+            const low = p.amount <= UNIT_STEP[p.unit];
+            const edit = () => router.push({ pathname: '/portion', params: { date, meal, id: i.recipe_id } });
             return (
               <View key={i.recipe_id} style={st.row}>
-                <View style={{ flex: 1 }}>
+                <Pressable style={{ flex: 1 }} onPress={edit} accessibilityRole="button" accessibilityLabel={`${i.name}, ${fmtPortion(p)}. Change amount`}>
                   <Text style={st.rowName}>{i.name}</Text>
-                  <Text style={st.rowSub}>{i.serving || ''}{q !== 1 ? ` × ${fmtQty(q)}` : ''}</Text>
-                </View>
+                  <Text style={st.rowSub}>
+                    {p.unit === 'serving' ? `${i.serving || ''}${q !== 1 ? ` × ${fmtQty(q)}` : ''}` : `${fmtPortion(p)} · ${fmtQty(Math.round(q * 100) / 100)} × ${i.serving}`}
+                  </Text>
+                </Pressable>
                 <View style={st.stepper}>
-                  <Pressable disabled={q <= 0.5} onPress={() => setQty(date, meal, i.recipe_id, -1)} style={st.step} accessibilityLabel="Fewer servings">
-                    <Icon name="remove" size={16} color={q <= 0.5 ? C.border : C.text} /></Pressable>
-                  <Text style={st.stepN}>{fmtQty(q)}</Text>
-                  <Pressable disabled={q >= 6} onPress={() => setQty(date, meal, i.recipe_id, 1)} style={st.step} accessibilityLabel="More servings">
-                    <Icon name="add" size={16} color={q >= 6 ? C.border : C.text} /></Pressable>
+                  <Pressable disabled={low} onPress={() => setQty(date, meal, i.recipe_id, -1)} style={st.step} accessibilityLabel="Less">
+                    <Icon name="remove" size={16} color={low ? C.border : C.text} /></Pressable>
+                  <Pressable onPress={edit} hitSlop={4} accessibilityLabel="Change amount">
+                    <Text style={st.stepN}>{p.unit === 'serving' ? fmtQty(p.amount) : fmtPortion(p).replace(' ', '')}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setQty(date, meal, i.recipe_id, 1)} style={st.step} accessibilityLabel="More">
+                    <Icon name="add" size={16} color={C.text} /></Pressable>
                 </View>
                 <Text style={st.rowCal}>{Math.round(i.calories * q)}</Text>
                 <Pressable onPress={() => removeFromPlate(date, meal, i.recipe_id)} hitSlop={8} accessibilityLabel={`Remove ${i.name}`}>

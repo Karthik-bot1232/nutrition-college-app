@@ -2,7 +2,7 @@
    the plate builder and the name-card matcher. Nothing here touches React or
    storage, so both clients can be checked against each other line by line. */
 
-import type { ActiveGoal, DayPlates, Goals, Item, Menu, Meta, PlateRow, Profile } from './types';
+import type { ActiveGoal, DayPlates, Goals, Item, Menu, Meta, PlateRow, Portion, Profile, Unit } from './types';
 
 export const NUTRIENTS: [string, string, string][] = [
   ['total_fat_g', 'Total fat', 'g'], ['saturated_fat_g', 'Saturated fat', 'g'],
@@ -52,7 +52,12 @@ export const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, c 
 export const shortHall = (name: string) => String(name).replace(/\s+Dining Hall$/i, '');
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export const hallName = (meta: Meta, id: string) => meta.locations.find(l => l.id === id)?.name || id;
-export const fmtQty = (q: number) => (q === 0.5 ? '½' : Number.isInteger(q) ? String(q) : `${Math.floor(q)}½`);
+/** Servings as a person says them: "½", "1½", "0.75". */
+export function fmtQty(q: number) {
+  if (Number.isInteger(q)) return String(q);
+  if (Number.isInteger(q * 2)) return q < 1 ? '½' : `${Math.floor(q)}½`;
+  return String(Math.round(q * 100) / 100);
+}
 
 /** A label figure: whole milligrams, grams to one place, and "0g" not "0.0g". */
 export function labelValue(v: number | null | undefined, unit: string): string | null {
@@ -221,13 +226,63 @@ export function totalsOf(rows: PlateRow[]): Totals {
 export const dayRows = (meta: Meta, plates: DayPlates | undefined) =>
   meta.meals.flatMap(m => plates?.[m] || []);
 
-export function plateRow(item: Item): PlateRow {
-  return {
+export function plateRow(item: Item, portion: Portion = { unit: 'serving', amount: 1 }): PlateRow {
+  return withPortion({
     recipe_id: item.recipe_id, name: item.name, serving: item.serving_size, qty: 1,
     calories: item.calories || 0, protein: item.nutrients.protein_g || 0,
     carbs: item.nutrients.total_carbs_g || 0, fat: item.nutrients.total_fat_g || 0,
     implausible: item.label_implausible,
-  };
+  }, portion);
+}
+
+/* ------------------------------------------------------------- portions
+
+   Totals always multiply by servings (qty). A weight is turned into servings
+   through the label's own serving size, which only works when that size is a
+   weight: "4 oz" can be weighed, "1 each" cannot. */
+
+export const G_PER_OZ = 28.3495;
+
+/** Ounces in one serving: "4 oz", "3 OZ", "4 1/2 oz", "1/2 oz". Null for "1 each". */
+export function servingOz(serving: string | null | undefined): number | null {
+  const m = /^\s*(?:(\d+(?:\.\d+)?)\s+)?(\d+(?:\.\d+)?)(?:\/(\d+))?\s*`?\s*(?:oz|ounces?)\b/i.exec(serving || '');
+  if (!m) return null;
+  const frac = m[3] ? Number(m[2]) / Number(m[3]) : Number(m[2]);
+  const oz = (m[1] ? Number(m[1]) : 0) + frac;
+  return oz > 0 ? oz : null;
+}
+
+export const UNIT_LABEL: Record<Unit, string> = { serving: 'Servings', oz: 'Ounces', g: 'Grams' };
+/** How far one tap of − or + moves, and the most a single row can be. */
+export const UNIT_STEP: Record<Unit, number> = { serving: 0.5, oz: 1, g: 25 };
+export const UNIT_MAX: Record<Unit, number> = { serving: 20, oz: 64, g: 2000 };
+
+export function toServings(p: Portion, oz: number | null): number {
+  if (p.unit === 'serving' || !oz) return p.amount;
+  return (p.unit === 'oz' ? p.amount : p.amount / G_PER_OZ) / oz;
+}
+
+/** The same amount in another unit, rounded to what a person would type. */
+export function convertPortion(p: Portion, to: Unit, oz: number | null): Portion {
+  if (to === p.unit) return p;
+  const servings = toServings(p, oz);
+  if (to === 'serving' || !oz) return { unit: 'serving', amount: Math.max(0.25, Math.round(servings * 4) / 4) };
+  if (to === 'oz') return { unit: 'oz', amount: Math.max(0.5, Math.round(servings * oz * 2) / 2) };
+  return { unit: 'g', amount: Math.max(1, Math.round(servings * oz * G_PER_OZ)) };
+}
+
+export const rowPortion = (r: PlateRow): Portion =>
+  ({ unit: r.unit || 'serving', amount: r.amount ?? (r.qty || 1) });
+
+export function withPortion(r: PlateRow, p: Portion): PlateRow {
+  return { ...r, unit: p.unit, amount: p.amount, qty: toServings(p, servingOz(r.serving)) };
+}
+
+/** "6 oz", "150 g", "1½ servings". */
+export function fmtPortion(p: Portion) {
+  if (p.unit === 'g') return `${Math.round(p.amount)} g`;
+  if (p.unit === 'oz') return `${Math.round(p.amount * 10) / 10} oz`;
+  return `${fmtQty(p.amount)} serving${p.amount === 1 ? '' : 's'}`;
 }
 
 /* -------------------------------------------------------------- builder

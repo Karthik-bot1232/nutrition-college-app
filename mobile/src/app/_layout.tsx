@@ -47,6 +47,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="welcome" options={{ gestureEnabled: false, animation: 'fade' }} />
             <Stack.Screen name="item/[id]" options={{ ...sheet, sheetAllowedDetents: [0.75, 1] }} />
+            <Stack.Screen name="portion" options={{ ...sheet, sheetAllowedDetents: [0.7, 1] }} />
             <Stack.Screen name="filters" options={{ ...sheet, sheetAllowedDetents: [0.8, 1] }} />
             <Stack.Screen name="hall" options={{ ...sheet, sheetAllowedDetents: [0.5, 0.8] }} />
             <Stack.Screen name="targets" options={{ ...sheet, sheetAllowedDetents: [0.85, 1] }} />

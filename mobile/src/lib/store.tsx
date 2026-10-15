@@ -3,8 +3,10 @@ import * as Haptics from 'expo-haptics';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { apiFor, clearDayCache } from './api';
-import { activeGoal, currentMeal, EMPTY_GOALS, homeDate, plateRow, type Scope, type Sort } from './logic';
-import type { ActiveGoal, DayPlates, Fav, Goals, Item, Meta, PlateRow, Profile } from './types';
+import {
+  activeGoal, currentMeal, EMPTY_GOALS, homeDate, plateRow, rowPortion, UNIT_MAX, UNIT_STEP, withPortion, type Scope, type Sort,
+} from './logic';
+import type { ActiveGoal, DayPlates, Fav, Goals, Item, Meta, PlateRow, Portion, Profile } from './types';
 
 /* Everything personal lives on the phone: the campus, the person's name,
    favorites, the diet profile, targets, plates and water. Nothing is ever
@@ -93,7 +95,11 @@ interface Store {
   onPlate: (id: string, meal?: string, date?: string) => boolean;
   togglePlate: (item: Item, meal?: string, date?: string) => void;
   addToPlate: (items: Item[], meal: string, date?: string) => void;
+  /** One tap of − or + in whatever unit the row was entered in. */
   setQty: (date: string, meal: string, id: string, delta: number) => void;
+  setPortion: (date: string, meal: string, id: string, portion: Portion) => void;
+  /** Adds the item at this amount, or changes the amount if it is already there. */
+  addPortion: (item: Item, portion: Portion, meal?: string, date?: string) => void;
   removeFromPlate: (date: string, meal: string, id: string) => void;
   clearMeal: (date: string, meal: string) => void;
   water: (date: string) => number;
@@ -324,7 +330,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     editDay(d, day => {
       const rows = day[m] || [];
       const have = new Set(rows.map(r => r.recipe_id));
-      day[m] = [...rows, ...items.filter(i => !have.has(i.recipe_id)).map(plateRow)];
+      day[m] = [...rows, ...items.filter(i => !have.has(i.recipe_id)).map(i => plateRow(i))];
       return day;
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -333,11 +339,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const setQty = useCallback((d: string, m: string, id: string, delta: number) => {
     editDay(d, day => {
-      day[m] = (day[m] || []).map((r: PlateRow) => r.recipe_id === id
-        ? { ...r, qty: Math.min(6, Math.max(0.5, (r.qty || 1) + delta * 0.5)) } : r);
+      day[m] = (day[m] || []).map((r: PlateRow) => {
+        if (r.recipe_id !== id) return r;
+        const p = rowPortion(r), step = UNIT_STEP[p.unit];
+        // Snap to the step first, so 130 g goes to 150 and back to 125, not 155.
+        const next = (delta > 0 ? Math.floor(p.amount / step) + delta : Math.ceil(p.amount / step) + delta) * step;
+        return withPortion(r, { unit: p.unit, amount: Math.min(UNIT_MAX[p.unit], Math.max(step, next)) });
+      });
       return day;
     });
   }, [editDay]);
+
+  const setPortion = useCallback((d: string, m: string, id: string, p: Portion) => {
+    editDay(d, day => {
+      day[m] = (day[m] || []).map((r: PlateRow) => r.recipe_id === id ? withPortion(r, p) : r);
+      return day;
+    });
+  }, [editDay]);
+
+  const addPortion = useCallback((item: Item, p: Portion, m = meal, d = date) => {
+    const was = (plates[d]?.[m] || []).some(r => r.recipe_id === item.recipe_id);
+    editDay(d, day => {
+      const rows = day[m] || [];
+      day[m] = was ? rows.map(r => r.recipe_id === item.recipe_id ? withPortion(r, p) : r) : [...rows, plateRow(item, p)];
+      return day;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    showToast(was ? `Updated ${item.name}` : `Added ${item.name} to ${m.toLowerCase()}`);
+  }, [plates, meal, date, editDay, showToast]);
 
   const removeFromPlate = useCallback((d: string, m: string, id: string) => {
     const row = (plates[d]?.[m] || []).find(r => r.recipe_id === id);
@@ -367,12 +396,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     goals, goal: activeGoal(goals), setGoals,
     recent, rememberSearch, clearRecent,
     filters, setFilters,
-    platesFor, onPlate, togglePlate, addToPlate, setQty, removeFromPlate, clearMeal,
+    platesFor, onPlate, togglePlate, addToPlate, setQty, setPortion, addPortion, removeFromPlate, clearMeal,
     water, setWater,
     toast, showToast, hideToast,
   }), [hydrated, college, setCollege, onboarded, completeOnboarding, name, setName, eraseAll, meta, metaError, date, meal, location, setLocation, profile, setProfile,
        favs, toggleFav, goals, setGoals, recent, rememberSearch, clearRecent, filters, setFilters,
-       platesFor, onPlate, togglePlate, addToPlate, setQty, removeFromPlate, clearMeal, water, setWater,
+       platesFor, onPlate, togglePlate, addToPlate, setQty, setPortion, addPortion, removeFromPlate, clearMeal, water, setWater,
        toast, showToast, hideToast]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
