@@ -1367,7 +1367,8 @@ function focusMeal(meal) {
   $(`#plateView [data-meal-toggle="${m}"], #plateView [data-meal-browse="${m}"]`)?.focus();
 }
 
-const fmtQty = q => q === 0.5 ? '½' : Number.isInteger(q) ? String(q) : `${Math.floor(q)}½`;
+const fmtQty = q => q * 2 !== Math.round(q * 2) ? fmtNum(q)
+  : q === 0.5 ? '½' : Number.isInteger(q) ? String(q) : `${Math.floor(q)}½`;
 
 /** One meal as a collapsible row: the summary is always visible, the items
     only when you open it.
@@ -1409,14 +1410,16 @@ function mealSection(meal) {
     ${open ? `<div class="meal__body">
       <ul class="rows">${rows.map(i => {
         const q = i.qty || 1;
+        const weighed = i.unit && i.unit !== 'serving';
         return `<li class="row platerow">
-          <div class="row__id"><b>${esc(i.name)}</b><span>${esc(i.serving || '')}${q !== 1 ? ` × ${fmtQty(q)}` : ''}</span></div>
-          <span class="stepper" role="group" aria-label="Servings of ${esc(i.name)}">
-            <button data-qty="-1" data-rid="${esc(i.recipe_id)}" data-from="${esc(meal)}" ${q <= 0.5 ? 'disabled' : ''}
-              aria-label="Fewer servings"><svg class="gi" aria-hidden="true"><use href="#ic-minus"/></svg></button>
-            <span class="stepper__n" aria-live="polite">${fmtQty(q)}</span>
-            <button data-qty="1" data-rid="${esc(i.recipe_id)}" data-from="${esc(meal)}" ${q >= 6 ? 'disabled' : ''}
-              aria-label="More servings"><svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg></button>
+          <div class="row__id"><b>${esc(i.name)}</b><span>${weighed ? esc(portionLabel(i))
+            : `${esc(i.serving || '')}${q !== 1 ? ` × ${fmtQty(q)}` : ''}`}</span></div>
+          <span class="stepper" role="group" aria-label="Amount of ${esc(i.name)}">
+            <button data-qty="-1" data-rid="${esc(i.recipe_id)}" data-from="${esc(meal)}" ${(weighed ? i.amount <= UNIT_STEP[i.unit] : q <= 0.5) ? 'disabled' : ''}
+              aria-label="Less"><svg class="gi" aria-hidden="true"><use href="#ic-minus"/></svg></button>
+            <span class="stepper__n" aria-live="polite">${weighed ? `${fmtNum(i.amount)}<small>${i.unit}</small>` : fmtQty(q)}</span>
+            <button data-qty="1" data-rid="${esc(i.recipe_id)}" data-from="${esc(meal)}" ${q >= MAX_QTY ? 'disabled' : ''}
+              aria-label="More"><svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg></button>
           </span>
           <span class="row__cal">${Math.round(i.calories * q)}<small> cal</small></span>
           <button class="remove" data-remove="${esc(i.recipe_id)}" data-from="${esc(meal)}"
@@ -2113,21 +2116,28 @@ function renderPlate() {
   });
 }
 
-/** Toggle from the browse list, with a confirmation and a way back. */
-function addOrRemove(recipeId, meal = state.meal) {
+/** Toggle from the browse list, with a confirmation and a way back.
+    `p` is the portion to add at, when the item sheet chose one. */
+function addOrRemove(recipeId, meal = state.meal, p = null) {
   const item = state.items.get(recipeId);
-  const was = plateFor(meal).some(p => p.recipe_id === recipeId);
-  togglePlate(recipeId, meal);
+  const plate = plateFor(meal);
+  const at = plate.findIndex(r => r.recipe_id === recipeId);
+  const removed = at >= 0 ? plate[at] : null;
+  togglePlate(recipeId, meal, p);
   const name = item?.name || 'Item';
   // Undo only touches the plate; renderPlate already re-syncs every + button,
   // so there is no need to refetch the menu and lose the scroll position.
-  const undo = () => togglePlate(recipeId, meal);
-  toast(was ? `Removed ${name}` : `Added ${name} to ${meal.toLowerCase()}`, undo);
+  // A removed row goes back exactly as it was, portion and place included.
+  const undo = removed
+    ? () => { plateFor(meal).splice(at, 0, removed); savePlate(); }
+    : () => togglePlate(recipeId, meal);
+  const how = p && !(p.unit === 'serving' && p.amount === 1) ? `${portionLabel(p)} ` : '';
+  toast(removed ? `Removed ${name}` : `Added ${how}${name} to ${meal.toLowerCase()}`, undo);
 }
 
-function togglePlate(recipeId, meal = state.meal) {
+function togglePlate(recipeId, meal = state.meal, p = null) {
   const plate = plateFor(meal);
-  const at = plate.findIndex(p => p.recipe_id === recipeId);
+  const at = plate.findIndex(r => r.recipe_id === recipeId);
   if (at >= 0) { plate.splice(at, 1); savePlate(); return; }
   const item = state.items.get(recipeId);
   if (!item) return;
@@ -2136,9 +2146,16 @@ function togglePlate(recipeId, meal = state.meal) {
     calories: item.calories || 0, protein: item.nutrients.protein_g || 0,
     carbs: item.nutrients.total_carbs_g || 0, fat: item.nutrients.total_fat_g || 0,
     implausible: item.label_implausible,
+    ...(p && portionRow(p)),
   });
   savePlate();
 }
+
+/** The fields a plate row keeps for a chosen portion. Servings stay as plain
+    `qty`, so a row reads the same as one added from the list. */
+const portionRow = p => p.unit === 'serving' || !p.grams
+  ? { qty: p.amount, unit: undefined, amount: undefined, grams: undefined }
+  : { qty: qtyOf(p), unit: p.unit, amount: p.amount, grams: p.grams };
 
 /* ------------------------------------------------------------------- stats */
 
@@ -2306,13 +2323,130 @@ function sheetHead(title, subtitle) {
     </div>`;
 }
 
-function addButton(recipeId, name, on) {
+/* How much of it you ate.
+
+   A label is per serving, and most UMD servings are weights ("4 oz"), so a
+   weighed serving can also be logged in ounces or grams and scaled from there.
+   "1 each" has no weight to scale by, so that one is servings only. */
+
+const G_PER_OZ = 28.3495;
+const MAX_QTY = 10;
+const UNIT_STEP = { serving: 0.5, oz: 1, g: 10 };
+
+/** One serving's weight in grams, when the serving size is a weight:
+    "4 oz", "4 1/2 oz", "1/2 oz", "4 oz.", "150 g". Otherwise null. */
+function servingGrams(size) {
+  const m = /^\s*(\d+(?:\.\d+)?)?\s*(?:(\d+)\/(\d+))?\s*`?\s*(oz|ounces?|g|grams?)\b/i.exec(size || '');
+  if (!m || (!m[1] && !m[2])) return null;
+  const n = (m[1] ? parseFloat(m[1]) : 0) + (m[2] ? m[2] / m[3] : 0);
+  if (!(n > 0)) return null;
+  return /^o/i.test(m[4]) ? n * G_PER_OZ : n;
+}
+
+const fmtNum = n => String(Math.round(n * 100) / 100);
+
+/** The portion being chosen in the open item sheet: { rid, grams, unit, amount }. */
+let portion = null;
+
+/** A plate row's portion in servings. Rows from before units existed are servings. */
+function qtyOf(p) {
+  if (!p.unit || p.unit === 'serving' || !p.grams) return p.amount ?? p.qty ?? 1;
+  return (p.unit === 'oz' ? p.amount * G_PER_OZ : p.amount) / p.grams;
+}
+
+/** The same portion expressed in another unit, rounded to something sayable. */
+function amountIn(unit, qty, grams) {
+  if (unit === 'serving') return Math.round(qty * 4) / 4 || 0.25;
+  const g = qty * grams;
+  return unit === 'oz' ? (Math.round(g / G_PER_OZ * 2) / 2 || 0.5) : (Math.round(g) || 1);
+}
+
+function portionLabel(p) {
+  if (!p.unit || p.unit === 'serving' || !p.grams) {
+    const q = p.amount ?? p.qty ?? 1;
+    return `${fmtQty(q)} serving${q === 1 ? '' : 's'}`;
+  }
+  return `${fmtNum(p.amount)} ${p.unit}`;
+}
+
+const portionValid = p => p.amount > 0 && qtyOf(p) <= MAX_QTY;
+
+/** Where the sheet's portion starts: what is already logged, or one serving. */
+function startPortion(item) {
+  const grams = servingGrams(item.serving_size);
+  const row = plateFor().find(p => p.recipe_id === item.recipe_id);
+  portion = row
+    ? { rid: item.recipe_id, grams, unit: (grams && row.unit) || 'serving',
+        amount: grams && row.unit && row.unit !== 'serving' ? row.amount : (row.qty || 1) }
+    : { rid: item.recipe_id, grams, unit: 'serving', amount: 1 };
+}
+
+function portionPicker(item) {
+  const p = portion;
+  const units = p.grams ? ['serving', 'oz', 'g'] : ['serving'];
+  return `<div class="portion">
+    <div class="portion__row">
+      <span class="stepper stepper--lg" role="group" aria-label="How much">
+        <button data-pstep="-1" aria-label="Less" ${p.amount <= UNIT_STEP[p.unit] ? 'disabled' : ''}>
+          <svg class="gi" aria-hidden="true"><use href="#ic-minus"/></svg></button>
+        <input class="portion__n" id="portionN" type="text" inputmode="decimal" autocomplete="off"
+          value="${fmtNum(p.amount)}" aria-label="Amount" aria-describedby="portionSum">
+        <button data-pstep="1" aria-label="More" ${qtyOf(p) >= MAX_QTY ? 'disabled' : ''}>
+          <svg class="gi" aria-hidden="true"><use href="#ic-plus"/></svg></button>
+      </span>
+      ${units.length > 1
+        ? `<div class="unitseg" role="radiogroup" aria-label="Unit">${units.map(u =>
+            `<button role="radio" data-punit="${u}" aria-checked="${u === p.unit}">${
+              u === 'serving' ? 'servings' : u}</button>`).join('')}</div>`
+        : `<span class="portion__unit">serving${p.amount === 1 ? '' : 's'}</span>`}
+    </div>
+    <p class="portion__sum" id="portionSum">${portionSummary(item)}</p>
+  </div>`;
+}
+
+function portionSummary(item) {
+  const p = portion;
+  if (!(p.amount > 0)) return 'Enter an amount';
+  const q = qtyOf(p);
+  if (q > MAX_QTY) return `That is more than ${MAX_QTY} servings`;
+  const cal = Math.round((item.calories || 0) * q);
+  const pro = Math.round((item.nutrients?.protein_g || 0) * q);
+  const servings = p.unit === 'serving' ? '' : ` · ${fmtNum(Math.round(q * 100) / 100)} serving${q === 1 ? '' : 's'}`;
+  return `${cal.toLocaleString()} cal · ${pro}g protein${servings}`;
+}
+
+/** The sheet's main button. Already logged at this portion: remove it.
+    Logged at a different portion: update it. Not logged: add it. */
+function addButton(recipeId, on) {
   const meal = esc(state.meal.toLowerCase());
-  return `<button class="btn btn--block ${on ? 'btn--ghost' : 'btn--primary'}"
-      data-add="${esc(recipeId)}">
-      <svg class="gi" aria-hidden="true"><use href="#ic-${on ? 'close' : 'plus'}"/></svg>
-      <span>${on ? `Remove from ${meal}` : `Add to ${meal}`}</span>
+  const p = portion?.rid === recipeId ? portion : null;
+  const row = on && plateFor().find(r => r.recipe_id === recipeId);
+  const ok = !p || portionValid(p);
+  const changed = row && p && Math.abs(qtyOf(row) - qtyOf(p)) > 1e-6
+    || row && p && (row.unit || 'serving') !== p.unit;
+  const what = p && !(p.unit === 'serving' && p.amount === 1) ? `${esc(portionLabel(p))} ` : '';
+  const [cls, icon, label] = !on ? ['btn--primary', 'plus', `Add ${what}to ${meal}`]
+    : changed ? ['btn--primary', 'check', `Update to ${esc(portionLabel(p))}`]
+    : ['btn--ghost', 'close', `Remove from ${meal}`];
+  return `<button class="btn btn--block ${cls}" data-add="${esc(recipeId)}" data-mode="${icon}" ${ok || (on && !changed) ? '' : 'disabled'}>
+      <svg class="gi" aria-hidden="true"><use href="#ic-${icon}"/></svg>
+      <span>${label}</span>
     </button>`;
+}
+
+/** Re-sync the picker after a change, leaving the field alone while it is typed in. */
+function refreshPortion(fromInput) {
+  const item = state.items.get(portion.rid);
+  const p = portion;
+  if (!fromInput) $('#portionN').value = fmtNum(p.amount);
+  $('#portionSum').textContent = portionSummary(item);
+  $('#sheet [data-pstep="-1"]').disabled = p.amount <= UNIT_STEP[p.unit];
+  $('#sheet [data-pstep="1"]').disabled = qtyOf(p) >= MAX_QTY;
+  $$('#sheet [data-punit]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.punit === p.unit)));
+  const unit = $('#sheet .portion__unit');
+  if (unit) unit.textContent = `serving${p.amount === 1 ? '' : 's'}`;
+  const on = plateFor().some(r => r.recipe_id === p.rid);
+  $('#sheet [data-add]').outerHTML = addButton(p.rid, on);
 }
 
 /** Where the calories come from, as three labelled shares. */
@@ -2404,6 +2538,7 @@ async function openDetail(recipeId) {
 
   const on = plateFor().some(p => p.recipe_id === item.recipe_id);
   const fav = isFav(item.recipe_id);
+  startPortion(item);
 
   showSheet(`
     ${sheetHead(item.name, item.serving_size || 'Serving size not listed')}
@@ -2447,10 +2582,11 @@ async function openDetail(recipeId) {
       </p>
     </div>
     <div class="sheet__foot">
+      ${portionPicker(item)}
       <button class="btn btn--ghost btn--fav" data-fav="${esc(item.recipe_id)}" data-name="${esc(item.name)}"
         aria-pressed="${fav}" aria-label="${fav ? 'Remove' : 'Save'} ${esc(item.name)} ${fav ? 'from' : 'to'} favorites">
         <svg class="gi" aria-hidden="true"><use href="#ic-heart"/></svg><span class="favlabel">${fav ? 'Saved' : 'Save'}</span></button>
-      ${addButton(item.recipe_id, item.name, on)}</div>`);
+      ${addButton(item.recipe_id, on)}</div>`);
 }
 
 /* ------------------------------------------------------------------ wiring */
@@ -2578,7 +2714,14 @@ function bind() {
     if (qty) {
       const row = plateFor(qty.dataset.from).find(p => p.recipe_id === qty.dataset.rid);
       if (!row) return;
-      row.qty = Math.min(6, Math.max(0.5, (row.qty || 1) + Number(qty.dataset.qty) * 0.5));
+      const dir = Number(qty.dataset.qty);
+      if (row.unit && row.unit !== 'serving' && row.grams) {
+        const by = UNIT_STEP[row.unit];
+        const amount = Math.max(by, Math.round((row.amount + dir * by) / by) * by);
+        if (qtyOf({ ...row, amount }) <= MAX_QTY) { row.amount = amount; row.qty = qtyOf(row); }
+      } else {
+        row.qty = Math.min(MAX_QTY, Math.max(0.5, (row.qty || 1) + dir * 0.5));
+      }
       savePlate();
       $(`#plateView [data-qty="${qty.dataset.qty}"][data-rid="${CSS.escape(qty.dataset.rid)}"]`)?.focus();
       return;
@@ -2794,12 +2937,49 @@ function bind() {
   $('#sheet').addEventListener('click', e => {
     const open = e.target.closest('[data-favopen]');
     if (open) { openDetail(open.dataset.favopen); return; }
+    const step = e.target.closest('[data-pstep]');
+    if (step) {
+      const by = UNIT_STEP[portion.unit];
+      // Snap to the step, so a typed 5.3 oz goes to 6 or 5, not 6.3 or 4.3.
+      const next = Math.round((portion.amount + Number(step.dataset.pstep) * by) / by) * by;
+      portion.amount = Math.max(by, next);
+      refreshPortion();
+      return;
+    }
+    const unit = e.target.closest('[data-punit]');
+    if (unit) {
+      const q = portionValid(portion) ? qtyOf(portion) : 1;
+      portion.unit = unit.dataset.punit;
+      portion.amount = amountIn(portion.unit, q, portion.grams);
+      refreshPortion();
+      return;
+    }
     const add = e.target.closest('[data-add]');
     if (!add) return;
     const id = add.dataset.add;
-    addOrRemove(id);
-    const on = plateFor().some(p => p.recipe_id === id);
-    add.outerHTML = addButton(id, state.items.get(id)?.name || '', on);
+    const row = plateFor().find(r => r.recipe_id === id);
+    const p = portion?.rid === id ? { ...portion } : null;
+    if (row && p && add.dataset.mode === 'check') {
+      // Logged already, at a different portion: change it in place.
+      const before = { ...row };
+      Object.assign(row, portionRow(p));
+      savePlate();
+      toast(`Updated ${row.name} to ${portionLabel(p)}`, () => { Object.assign(row, before); savePlate(); });
+    } else {
+      addOrRemove(id, state.meal, p);
+    }
+    const on = plateFor().some(r => r.recipe_id === id);
+    $('#sheet [data-add]').outerHTML = addButton(id, on);
+  });
+
+  $('#sheet').addEventListener('input', e => {
+    if (e.target.id !== 'portionN') return;
+    portion.amount = parseFloat(e.target.value.replace(',', '.'));
+    refreshPortion(true);
+  });
+  // Tidy what was typed once the field is left, if it was a number at all.
+  $('#sheet').addEventListener('change', e => {
+    if (e.target.id === 'portionN' && portion.amount > 0) e.target.value = fmtNum(portion.amount);
   });
 
   const bindField = (sel, key, prop = 'value') => $(sel).addEventListener('input', e => {

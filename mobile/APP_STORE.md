@@ -86,7 +86,7 @@ dining hall,menu,nutrition,calories,protein,macros,college,campus,meal planner,f
 > Tell it your calorie and protein target and it puts together plates from what is actually being served today.
 >
 > TRACK YOUR DAY
-> Log meals with half-serving steps, see your calories and protein against your daily targets, track water, and see your week at a glance.
+> Log meals by the serving, ounce or gram, see your calories and protein against your daily targets, track water, and see your week at a glance.
 >
 > FAVORITES
 > Heart the dishes you love and the Today screen tells you when they're on.

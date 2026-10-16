@@ -1342,3 +1342,32 @@ html, body { overscroll-behavior: none; }
 @media (min-width: 720px) {
   .scan__top { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
 }
+
+/* ---- Portion picker, above Add in the item sheet ---- */
+.sheet__foot { flex-wrap: wrap; }
+.portion { flex: 1 0 100%; display: flex; flex-direction: column; gap: var(--s2); }
+.portion__row { display: flex; align-items: center; gap: var(--s2); }
+.stepper--lg { padding: 2px; }
+.stepper--lg button { width: 40px; height: 40px; }
+.stepper--lg .gi { width: 16px; height: 16px; }
+.portion__n {
+  width: 4.5ch; min-width: 0; padding: 0; border: 0; background: none; color: var(--text);
+  text-align: center; font: inherit; font-size: var(--t-lg); font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.portion__n:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.portion__unit { font-size: var(--t-sm); color: var(--text-2); font-weight: 650; }
+.unitseg {
+  flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r-pill);
+}
+.unitseg button {
+  min-height: 40px; border-radius: var(--r-pill);
+  font-size: var(--t-sm); font-weight: 650; color: var(--text-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.unitseg button:hover:not([aria-checked="true"]) { color: var(--text); }
+.unitseg button[aria-checked="true"] { background: var(--text); color: var(--surface); font-weight: 750; }
+.portion__sum { font-size: var(--t-sm); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.btn:disabled { opacity: .45; cursor: default; }
+.stepper__n small { font-size: 10px; font-weight: 650; color: var(--text-3); margin-left: 1px; }
