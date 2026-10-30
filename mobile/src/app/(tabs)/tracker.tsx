@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DayCard, WaterRow } from '../../components/Day';
 import { TopBar } from '../../components/TopBar';
+import { WeekStrip } from '../../components/WeekStrip';
 import { Btn, GoalBar, Hint, Icon, LinkBtn, Notice, Panel } from '../../components/ui';
 import {
   addDays, dayRows, fmtPortion, fmtQty, longDay, mondayOf, parseDay, plural, rowPortion, served, shortDay, totalsOf, UNIT_STEP,
@@ -22,7 +23,8 @@ export default function Tracker() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <TopBar title="Tracker" sub={longDay(date)} />
-        <View style={{ paddingHorizontal: 16, gap: 12 }}>
+        <WeekStrip />
+        <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 12 }}>
           <Panel flush>
             <View style={st.head}>
               <View style={{ flex: 1 }}>

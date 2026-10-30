@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { openItem } from '../../components/items';
 import { TopBar } from '../../components/TopBar';
 import { Btn, Empty, GoalBar, Hint, Loading, Panel, Segmented } from '../../components/ui';
+import { WeekStrip } from '../../components/WeekStrip';
 import { apiFor } from '../../lib/api';
 import { buildPlans, buildPool, hallName, isLive, served, shortDay, shortHall, titleCase, type Plan } from '../../lib/logic';
 import { useMeta } from '../../lib/store';
@@ -43,7 +44,8 @@ export default function Build() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <TopBar title="Build a meal" sub={`${hall} · ${shortDay(date)}`} onSub={() => router.push('/hall')} />
-        <View style={{ paddingHorizontal: 16, gap: 12 }}>
+        <WeekStrip />
+        <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 12 }}>
           <Segmented value={meal} onChange={setMeal} options={meta.meals.map(m => ({
             value: m, label: m, live: isLive(meta, date, m), disabled: !served(meta, date, m) }))} />
 

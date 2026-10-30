@@ -87,6 +87,13 @@
       "typedRoutes": true
     },
     "description": "Dining hall menus and full nutrition labels for your campus.",
-    "githubUrl": "https://github.com/Karthik-bot1232/nutrition-college-app"
+    "githubUrl": "https://github.com/Karthik-bot1232/nutrition-college-app",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "632c9955-11bb-49d4-b2b7-b227a21181eb"
+      }
+    },
+    "owner": "kv8173"
   }
 }

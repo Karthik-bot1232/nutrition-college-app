@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
 import { apiFor, clearDayCache } from './api';
 import {
-  activeGoal, currentMeal, EMPTY_GOALS, homeDate, plateRow, rowPortion, UNIT_MAX, UNIT_STEP, withPortion, type Scope, type Sort,
+  activeGoal, currentMeal, EMPTY_GOALS, homeDate, plateRow, rowPortion, todayIso, UNIT_MAX, UNIT_STEP, withPortion, type Scope, type Sort,
 } from './logic';
 import type { ActiveGoal, DayPlates, Fav, Goals, Item, Meta, PlateRow, Portion, Profile } from './types';
 
@@ -133,6 +134,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [metaNonce, setMetaNonce] = useState(0);
+  /** When the server's meta last arrived, so a quick app switch does not refetch it. */
+  const metaAt = useRef(0);
 
   const [date, setDate] = useState('');
   const [meal, setMeal] = useState('');
@@ -210,12 +213,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let live = true;
     apiFor(college).meta().then(m => {
       if (!live) return;
+      metaAt.current = Date.now();
       land(m);
       save(K.metaCache(college), m);
       stored.current[K.metaCache(college)] = m;
     }).catch(e => { if (live) setMetaError(String(e?.message || e)); });
     return () => { live = false; };
   }, [college, metaNonce]);
+
+  /* iOS keeps a backgrounded app alive for days, so coming back to it has to
+     act like opening it: the daily refresh may have added days, and a new
+     calendar day should land on today's current meal, not the one left open. */
+  const activeDay = useRef(todayIso());
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', s => {
+      if (s !== 'active') return;
+      const today = todayIso();
+      if (today !== activeDay.current) {
+        activeDay.current = today;
+        shown.current = null;
+        clearDayCache();
+        setMetaNonce(n => n + 1);
+      } else if (Date.now() - metaAt.current > 30 * 60_000) {
+        setMetaNonce(n => n + 1);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const setCollege = useCallback((slug: string) => {
     save(K.college, slug);
