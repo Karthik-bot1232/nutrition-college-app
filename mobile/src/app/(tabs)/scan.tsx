@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,7 +31,7 @@ try {
 type Status = 'idle' | 'reading' | 'matching' | 'done' | 'error';
 
 export default function Scan() {
-  const { meta, meal, location, setDate, date, setFilters } = useMeta();
+  const { meta, meal, location, setDate, setFilters } = useMeta();
   const [photo, setPhoto] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [status, setStatus] = useState<Status>('idle');
@@ -40,8 +40,10 @@ export default function Scan() {
   const token = useRef(0);
 
   // A card in front of you is today's food, whatever day Menu was left on.
+  // Only a match moves the shared day to today, so what gets logged lands on
+  // today. Doing it on every render instead pulled Menu back to today each
+  // time another day was picked, because the tab stays mounted once visited.
   const today = homeDate(meta);
-  useEffect(() => { if (date !== today) setDate(today); }, [date, today, setDate]);
 
   const where = `${meal.toLowerCase()} at ${location === 'all' ? 'any hall' : shortHall(hallName(meta, location))}, ${isToday(today) ? 'today' : shortDay(today)}`;
 
@@ -52,6 +54,7 @@ export default function Scan() {
       const day = await loadDay(meta, today);
       const found = matchScan(t, scanCandidates(day, meal, location));
       if (mine !== token.current) return;
+      setDate(today);
       setMatches(found);
       setStatus('done');
       if (autoOpen && scanIsSure(found)) openItem(found[0].item.recipe_id);
